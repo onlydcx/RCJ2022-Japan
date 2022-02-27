@@ -279,10 +279,10 @@ bool Kicking = false;
 void kick() {
    digitalWrite(10, HIGH);
    Kicking = true;
-   delay(60);
+   delay(100);
    digitalWrite(10, LOW);
    Kicking = !Kicking;
-   delay(60);
+   delay(100);
 }
 
 String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "LineUpdate", "GK"};
@@ -340,7 +340,7 @@ void loop() {
          case 3:
             while (!CenterPush) {
                printKick();
-               if (!Kicking && digitalRead(31)) {
+               if (digitalRead(31)) {
                   kick();
                }
             }
