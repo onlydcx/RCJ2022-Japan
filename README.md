@@ -12,4 +12,4 @@ See https://twitter.com/onlydcx/status/1496482038823940099?s=21 for detailed ope
 
 これは、RoboCup Junior 2022に向けたロボットに搭載する予定の一部分です。
 
-詳しい動作はhttps://twitter.com/onlydcx/status/1496482038823940099?s=21を見てください。
+詳しい動作はhttps://twitter.com/onlydcx/status/1496482038823940099?s=21 を見てください。
