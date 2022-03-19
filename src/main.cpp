@@ -3,7 +3,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <MPU6050_6Axis_MotionApps20.h>
-// #include "ssd1306.h"
+#include <CytronMotorDriver.h>
 
 #define LeftPin 33
 #define RightPin 27
@@ -23,6 +23,12 @@
 #define CenterPush isPush(33)
 #define OnOffPush isPush(31)
 #define RightPush isPush(27)
+#define AnyPush (LeftPush || CenterPush || OnOffPush || RightPush)
+
+CytronMD motor1(PWM_DIR,5,4);
+CytronMD motor2(PWM_DIR,3,2);
+CytronMD motor3(PWM_DIR,9,8);
+CytronMD motor4(PWM_DIR,7,6);
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
@@ -40,6 +46,13 @@ int Gyro_X, Gyro_Y, Gyro_Z, Accel_Z;
 
 int speed = 150;
 bool isFirstSetSpeed = true;
+
+int ave_motor_power[4][10] = {0};
+int ave_mpPlus = 0;
+
+int prevIR, dirPlus, cnt;
+int dirIR = 0;
+
 
 int GyroGet(void) {
    mpuIntStatus = false;
@@ -274,6 +287,66 @@ void printIMU() {
    display.display();
 }
 
+
+void RST_Gy() {
+   String txt = "RST Gyro";
+   int char_len = txt.length();
+   int drawX = (display.width() / 2) - ((char_len / 2) * 11);
+   display.clearDisplay();
+   display.setTextSize(2);
+   display.setTextColor(SSD1306_WHITE);
+   display.setCursor(drawX, 30);
+   display.println(txt);
+   display.display();
+   if(OnOffPush) {
+      String txt = "Now Reseting..";
+      int char_len = txt.length();
+      int drawX = (display.width() / 2) - ((char_len / 2) * 11);
+      display.clearDisplay();
+      display.setTextSize(2);
+      display.setTextColor(SSD1306_WHITE);
+      display.setCursor(drawX, 30);
+      display.println(txt);
+      display.display();
+      Gryo_init();
+      delay(600);
+   }
+}
+
+void motor(int angle) {
+
+   double motor_power[4];
+   double max_power;
+
+   motor_power[0] = cos((45 - angle) / 180.0 * PI);
+   motor_power[1] = cos((135 - angle) / 180.0 * PI);
+   motor_power[2] = cos((-45 - angle) / 180.0 * PI);
+   motor_power[3] = cos((-135 - angle) / 180.0 * PI);
+
+   for (int i = 0; i < 4; i++) {
+      if (abs(motor_power[i]) > max_power) {
+         max_power = abs(motor_power[i]);
+      }
+   }
+
+   for (int i = 0; i < 4; i++) {
+      motor_power[i] = 120 * motor_power[i] / max_power;
+      for (int j = 9; j > 0; j--) {
+         ave_motor_power[i][j] = ave_motor_power[i][j - 1];
+      }
+      ave_motor_power[i][0] = motor_power[i];
+      ave_mpPlus = 0;
+      for (int k = 0; k < 10; k++) {
+         ave_mpPlus = ave_mpPlus + ave_motor_power[i][k];
+      }
+      motor_power[i] = ave_mpPlus / 10;
+   }
+   motor1.setSpeed(-motor_power[1]);
+   motor2.setSpeed(motor_power[0]);
+   motor3.setSpeed(motor_power[2]);
+   motor4.setSpeed(motor_power[3]);
+}
+
 bool Kicking = false;
 
 void kick() {
@@ -285,7 +358,51 @@ void kick() {
    delay(100);
 }
 
-String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "LineUpdate", "GK"};
+void turnFront() {
+   int diff = 35;
+   int S = 50;
+   int MAX = 150;
+   int GY = GyroGet();
+   if(GY >= diff && GY < 90) {
+      motor1.setSpeed(S);
+      motor2.setSpeed(S);
+      motor3.setSpeed(-S);
+      motor4.setSpeed(S);
+   }
+   else if(GY >= 90 && GY < 180) {
+      motor1.setSpeed(MAX);
+      motor2.setSpeed(MAX);
+      motor3.setSpeed(-MAX);
+      motor4.setSpeed(MAX);
+   }
+   else if(GY >= 180 && GY < 275) {
+      motor1.setSpeed(-MAX);
+      motor2.setSpeed(-MAX);
+      motor3.setSpeed(MAX);
+      motor4.setSpeed(-MAX);
+   }
+   else if(GY >= 275 && GY < 360 - diff) {
+      motor1.setSpeed(-S);
+      motor2.setSpeed(-S);
+      motor3.setSpeed(S);
+      motor4.setSpeed(-S);
+   }
+   else {
+      motor1.setSpeed(0);
+      motor2.setSpeed(0);
+      motor3.setSpeed(0);
+      motor4.setSpeed(0);
+   }
+}
+
+void followBall() {
+   display.clearDisplay();
+   display.display();
+   turnFront();
+}
+
+
+String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "RST Gyro"};
 int mode_len = SIZE_OF_ARRAY(mode);
 
 void setup() {
@@ -307,6 +424,9 @@ void setup() {
    display.setCursor(drawX, 10);
    display.println("Main.cpp");
    display.display();
+   while(!AnyPush) {
+      ;
+   }
 }
 
 int status = 0;
@@ -327,6 +447,11 @@ void loop() {
    }
    if (CenterPush) {
       switch (status) {
+         case 0:
+            while(!CenterPush) {
+               followBall();
+            }
+            break;
          case 1:
             while (!CenterPush) {
                printIR();
@@ -378,6 +503,12 @@ void loop() {
             while (!CenterPush) {
                changeSpeed();
             }
+            break;
+         case 5:
+            while (!CenterPush) {
+               RST_Gy();
+            }
+            break;
          default:
             break;
       }
