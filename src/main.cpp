@@ -25,6 +25,11 @@
 #define RightPush isPush(27)
 #define AnyPush (LeftPush || CenterPush || OnOffPush || RightPush)
 
+#define isOnFront (isOnLine(1,0) || isOnLine(1,1))
+#define isOnRight (isOnLine(0,0) || isOnLine(0,1))
+#define isOnBack (isOnLine(2,0) || isOnLine(2,1))
+#define isOnLeft (isOnLine(3,0) || isOnLine(3,1))
+
 CytronMD motor1(PWM_DIR,5,4);
 CytronMD motor2(PWM_DIR,3,2);
 CytronMD motor3(PWM_DIR,9,8);
@@ -53,6 +58,10 @@ int ave_mpPlus = 0;
 int prevIR, dirPlus, cnt;
 int dirIR = 0;
 
+int getDx(String txt) {
+   int char_len = txt.length();
+   return (display.width() / 2) - ((char_len / 2) * 11);
+}
 
 int GyroGet(void) {
    mpuIntStatus = false;
@@ -154,11 +163,11 @@ int IRval(int i) {
       re_strength = d;
    }
 
-   if (i != 1) {
+   if(i != 1) {
       return re_strength;
    }
    else {
-      return re_angle * 5;
+      return re_angle*5;
    }
 }
 
@@ -216,15 +225,109 @@ void printIR() {
    display.display();
 }
 
+int analogPins[4][2] = {
+   {0, 1}, {2, 3}, {6, 7}, {8, 9}
+};
+
+int thresholds[4][2] = {
+   {1023, 1023},
+   {1023, 1023},
+   {1023, 1023},
+   {1023, 1023}
+};
+
+int LineMin[4][2] = {1023};
+int LineMax[4][2] = {0};
+
 void LineThUpdate() {
-   String txt = "Updating..";
-   int char_len = txt.length();
-   int drawX = (display.width() / 2) - ((char_len / 2) * 11);
+   String txt = "Update";
    display.clearDisplay();
    display.setTextSize(2);
    display.setTextColor(SSD1306_WHITE);
-   display.setCursor(drawX, 30);
+   display.setCursor(getDx(txt), 30);
    display.println(txt);
+   display.display();
+   if(OnOffPush) {
+      txt = "Updating";
+      display.clearDisplay();
+      display.setTextSize(2);
+      display.setTextColor(SSD1306_WHITE);
+      display.setCursor(getDx(txt), 30);
+      display.println(txt);
+      display.display();
+      while(!OnOffPush) {
+         for(int i = 0; i < 4; i++) {
+            for(int j = 0; j < 2; j++) {
+               int val = analogRead(analogPins[i][j]);
+               if(val < LineMin[i][j]) {
+                  LineMin[i][j] = val;
+               }
+               if(val > LineMax[i][j]) {
+                  LineMax[i][j] = val;
+               }
+            }
+         }
+      }
+      for(int i = 0; i < 4; i++) {
+         for(int j = 0; j < 2; j++) {
+            int border = 2;
+            int diff = abs(LineMax[i][j] - LineMin[i][j]);
+            int threshold = LineMax[i][j] - (diff / border);
+            thresholds[i][j] = threshold;
+         }
+      }
+      txt = "done";
+      display.clearDisplay();
+      display.setTextSize(2);
+      display.setTextColor(SSD1306_WHITE);
+      display.setCursor(getDx(txt), 30);
+      display.println(txt);
+      display.display();
+      delay(500);
+   }
+}
+
+int getLine(int i, int j) {
+   return analogRead(analogPins[i][j]);
+}
+
+bool isOnLine(int i, int j) {
+   return (analogRead(analogPins[i][j]) > thresholds[i][j])? true: false;
+}
+
+void printLine() {
+   int cx = w/4, cy = h/2;
+   display.clearDisplay();
+   int paddingC = 10, paddingI = 3;
+   int r = w / 5;
+   display.drawCircle(cx, cy, r, SSD1306_WHITE);
+   display.drawLine(cx, paddingC, cx, cy - paddingI, SSD1306_WHITE);
+   display.drawLine(cx, cy + paddingI, cx, h - paddingC, SSD1306_WHITE);
+   display.drawLine(paddingC, cy, cx - paddingI, cy, SSD1306_WHITE);
+   display.drawLine(cx + paddingI, cy, cx * 2 - paddingC, cy, SSD1306_WHITE);
+   String isOnTXT = "";
+   if(isOnFront) {
+      display.fillRect(cx-2, 10, 5, r-5, SSD1306_WHITE);
+      isOnTXT += "F";
+   }
+   if(isOnRight) {
+      display.fillRect(cx+3, cy-2, r-5, 5, SSD1306_WHITE);
+      isOnTXT += "R";
+   }
+   // if(isOnBack) {
+   //    display.fillRect(cx-2, cy+3, 5, r-5, SSD1306_WHITE);
+   // }
+   // if(isOnLeft) {
+   //    display.fillRect(10, cy-2, r-5, 5, SSD1306_WHITE);
+   // }
+   display.setTextColor(SSD1306_WHITE);
+   display.setTextSize(2);
+   display.setCursor(w/2 + 10, 10);
+   display.println("Line");
+   display.setTextSize(2);
+   display.setTextColor(SSD1306_WHITE);
+   display.setCursor(w / 2 + 10, h / 2 + 5);
+   display.println(isOnTXT);
    display.display();
 }
 
@@ -287,7 +390,6 @@ void printIMU() {
    display.display();
 }
 
-
 void RST_Gy() {
    String txt = "RST Gyro";
    int char_len = txt.length();
@@ -299,7 +401,7 @@ void RST_Gy() {
    display.println(txt);
    display.display();
    if(OnOffPush) {
-      String txt = "Now Reseting..";
+      String txt = "Reseting";
       int char_len = txt.length();
       int drawX = (display.width() / 2) - ((char_len / 2) * 11);
       display.clearDisplay();
@@ -309,8 +411,15 @@ void RST_Gy() {
       display.println(txt);
       display.display();
       Gryo_init();
-      delay(600);
+      delay(100);
    }
+}
+
+void motorStop() {
+   motor1.setSpeed(0);
+   motor2.setSpeed(0);
+   motor3.setSpeed(0);
+   motor4.setSpeed(0);
 }
 
 void motor(int angle) {
@@ -330,7 +439,7 @@ void motor(int angle) {
    }
 
    for (int i = 0; i < 4; i++) {
-      motor_power[i] = 120 * motor_power[i] / max_power;
+      motor_power[i] = speed * motor_power[i] / max_power;
       for (int j = 9; j > 0; j--) {
          ave_motor_power[i][j] = ave_motor_power[i][j - 1];
       }
@@ -347,18 +456,14 @@ void motor(int angle) {
    motor4.setSpeed(motor_power[3]);
 }
 
-bool Kicking = false;
-
 void kick() {
    digitalWrite(10, HIGH);
-   Kicking = true;
    delay(100);
    digitalWrite(10, LOW);
-   Kicking = !Kicking;
    delay(100);
 }
 
-void turnFront() {
+void followBall() {
    int diff = 35;
    int S = 50;
    int MAX = 150;
@@ -388,21 +493,43 @@ void turnFront() {
       motor4.setSpeed(-S);
    }
    else {
-      motor1.setSpeed(0);
-      motor2.setSpeed(0);
-      motor3.setSpeed(0);
-      motor4.setSpeed(0);
+      if(isOnFront) {
+         // while(isOnFront) 
+         motor(180);
+      }
+      if(isOnRight) {
+         // while(isOnRight) 
+         motor(270);
+      }
+      // if(isOnBack) {
+      //    // while(isOnBack) 
+      //    motor(0);
+      // }      
+      // if(isOnLeft) {
+      //    // while(isOnLeft) 
+      //    motor(90);
+      // }
+      else {
+         motorStop();
+      }
+      // else {
+      //    int IR = IRval(1);
+      //    if (IR <= 30 || IR >= 330){
+      //       motor(IR);
+      //    }
+      //    else {
+      //       if (IR <= 180){
+      //          motor(IR + 50);
+      //       }
+      //       else {
+      //          motor(IR - 50);
+      //       }
+      //    }
+      // }
    }
 }
 
-void followBall() {
-   display.clearDisplay();
-   display.display();
-   turnFront();
-}
-
-
-String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "RST Gyro"};
+String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "RST Gyro","LineCheck","LineTh"};
 int mode_len = SIZE_OF_ARRAY(mode);
 
 void setup() {
@@ -424,9 +551,9 @@ void setup() {
    display.setCursor(drawX, 10);
    display.println("Main.cpp");
    display.display();
-   while(!AnyPush) {
-      ;
-   }
+   // while(!AnyPush) {
+   //    ;
+   // }
 }
 
 int status = 0;
@@ -448,9 +575,12 @@ void loop() {
    if (CenterPush) {
       switch (status) {
          case 0:
+            display.clearDisplay();
+            display.display();
             while(!CenterPush) {
                followBall();
             }
+            motorStop();
             break;
          case 1:
             while (!CenterPush) {
@@ -507,6 +637,16 @@ void loop() {
          case 5:
             while (!CenterPush) {
                RST_Gy();
+            }
+            break;
+         case 6:
+            while (!CenterPush) {
+               printLine();
+            }
+            break;
+         case 7:
+            while (!CenterPush) {
+               LineThUpdate();
             }
             break;
          default:
