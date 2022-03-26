@@ -30,10 +30,10 @@
 #define isOnBack (isOnLine(2,0) || isOnLine(2,1))
 #define isOnLeft (isOnLine(3,0) || isOnLine(3,1))
 
-CytronMD motor1(PWM_DIR,5,4);
-CytronMD motor2(PWM_DIR,3,2);
-CytronMD motor3(PWM_DIR,9,8);
-CytronMD motor4(PWM_DIR,7,6);
+CytronMD motor1(PWM_DIR, 5, 4);
+CytronMD motor2(PWM_DIR, 3, 2);
+CytronMD motor3(PWM_DIR, 9, 8);
+CytronMD motor4(PWM_DIR, 7, 6);
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
@@ -139,6 +139,7 @@ int getVah(int f) {
    Wire.beginTransmission(0x0E);
    Wire.write(f);
    Wire.endTransmission();
+   // Wire.endTransmission(false); // falseの方が良いらしい...?
    Wire.requestFrom(0x0E, 1);
    while (Wire.available()) {
       val = Wire.read();
@@ -314,12 +315,14 @@ void printLine() {
       display.fillRect(cx+3, cy-2, r-5, 5, SSD1306_WHITE);
       isOnTXT += "R";
    }
-   // if(isOnBack) {
-   //    display.fillRect(cx-2, cy+3, 5, r-5, SSD1306_WHITE);
-   // }
-   // if(isOnLeft) {
-   //    display.fillRect(10, cy-2, r-5, 5, SSD1306_WHITE);
-   // }
+   if(isOnBack) {
+      display.fillRect(cx-2, cy+3, 5, r-5, SSD1306_WHITE);
+      isOnTXT += "B";
+   }
+   if(isOnLeft) {
+      display.fillRect(10, cy-2, r-5, 5, SSD1306_WHITE);
+      isOnTXT += "L";
+   }
    display.setTextColor(SSD1306_WHITE);
    display.setTextSize(2);
    display.setCursor(w/2 + 10, 10);
@@ -425,7 +428,7 @@ void motorStop() {
 void motor(int angle) {
 
    double motor_power[4];
-   double max_power;
+   double max_power; // ????
 
    motor_power[0] = cos((45 - angle) / 180.0 * PI);
    motor_power[1] = cos((135 - angle) / 180.0 * PI);
@@ -450,6 +453,31 @@ void motor(int angle) {
       }
       motor_power[i] = ave_mpPlus / 10;
    }
+   motor1.setSpeed(-motor_power[1]);
+   motor2.setSpeed(motor_power[0]);
+   motor3.setSpeed(motor_power[2]);
+   motor4.setSpeed(motor_power[3]);
+}
+
+void lightMotor(int angle) {
+   double motor_power[4];
+   double max_power; // ????
+
+   motor_power[0] = cos((45 - angle) / 180.0 * PI);
+   motor_power[1] = cos((135 - angle) / 180.0 * PI);
+   motor_power[2] = cos((-45 - angle) / 180.0 * PI);
+   motor_power[3] = cos((-135 - angle) / 180.0 * PI);
+
+   for (int i = 0; i < 4; i++) {
+      if (abs(motor_power[i]) > max_power) {
+         max_power = abs(motor_power[i]);
+      }
+   }
+
+   for (int i = 0; i < 4; i++) {
+      motor_power[i] = speed * motor_power[i] / max_power;
+   }
+
    motor1.setSpeed(-motor_power[1]);
    motor2.setSpeed(motor_power[0]);
    motor3.setSpeed(motor_power[2]);
@@ -493,43 +521,103 @@ void followBall() {
       motor4.setSpeed(-S);
    }
    else {
+      int dlTime = 200;
       if(isOnFront) {
-         // while(isOnFront) 
-         motor(180);
+         lightMotor(180);
+         delay(dlTime);
       }
       if(isOnRight) {
-         // while(isOnRight) 
-         motor(270);
+         lightMotor(270);
+         delay(dlTime);
       }
-      // if(isOnBack) {
-      //    // while(isOnBack) 
-      //    motor(0);
-      // }      
-      // if(isOnLeft) {
-      //    // while(isOnLeft) 
-      //    motor(90);
-      // }
+      if(isOnBack) {
+         lightMotor(0);
+         delay(dlTime);
+      }      
+      if(isOnLeft) {
+         lightMotor(90);
+         delay(dlTime);
+      }
       else {
-         motorStop();
+         int IR = IRval(1);
+         if (IR <= 30 || IR >= 330){
+            motor(IR);
+         }
+         else {
+            if (IR <= 180){
+               motor(IR + 50);
+            }
+            else {
+               motor(IR - 50);
+            }
+         }
       }
-      // else {
-      //    int IR = IRval(1);
-      //    if (IR <= 30 || IR >= 330){
-      //       motor(IR);
-      //    }
-      //    else {
-      //       if (IR <= 180){
-      //          motor(IR + 50);
-      //       }
-      //       else {
-      //          motor(IR - 50);
-      //       }
-      //    }
-      // }
    }
 }
 
-String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "RST Gyro","LineCheck","LineTh"};
+void followBall2() {
+   int diff = 35;
+   int S = 50;
+   int MAX = 150;
+   int GY = GyroGet();
+   if(GY >= diff && GY < 90) {
+      motor1.setSpeed(S);
+      motor2.setSpeed(S);
+      motor3.setSpeed(-S);
+      motor4.setSpeed(S);
+   }
+   else if(GY >= 90 && GY < 180) {
+      motor1.setSpeed(MAX);
+      motor2.setSpeed(MAX);
+      motor3.setSpeed(-MAX);
+      motor4.setSpeed(MAX);
+   }
+   else if(GY >= 180 && GY < 275) {
+      motor1.setSpeed(-MAX);
+      motor2.setSpeed(-MAX);
+      motor3.setSpeed(MAX);
+      motor4.setSpeed(-MAX);
+   }
+   else if(GY >= 275 && GY < 360 - diff) {
+      motor1.setSpeed(-S);
+      motor2.setSpeed(-S);
+      motor3.setSpeed(S);
+      motor4.setSpeed(-S);
+   }
+   else {
+      int IR = IRval(1);
+      int toMove = 0;
+      if (IR <= 30 || IR >= 330){
+         toMove = IR;
+      }
+      else {
+         if (IR <= 180){
+            toMove = IR + 50;
+         }
+         else {
+            toMove = IR - 50;
+         }
+      }
+      double rad = toMove * PI / 180.0;
+      int x = cos(rad), y = sin(rad);
+      if(isOnFront && (y > 0)) {
+         y = 0;
+      }
+      if(isOnRight && (x > 0)) {
+         x = 0;
+      }
+      if(isOnBack && (y < 0)) {
+         y = 0;
+      }
+      if(isOnLeft && (x < 0)) {
+         x = 0;
+      }
+      toMove = int(sqrt((x + y)));
+      lightMotor(toMove);
+   }
+}
+
+String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "RST Gyro","LineCheck","LineThUp"};
 int mode_len = SIZE_OF_ARRAY(mode);
 
 void setup() {
@@ -551,9 +639,6 @@ void setup() {
    display.setCursor(drawX, 10);
    display.println("Main.cpp");
    display.display();
-   // while(!AnyPush) {
-   //    ;
-   // }
 }
 
 int status = 0;
