@@ -8,6 +8,9 @@
 #define LeftPin 33
 #define RightPin 27
 
+#define OpenMV Serial7
+
+
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 
@@ -25,10 +28,25 @@
 #define RightPush isPush(27)
 #define AnyPush (LeftPush || CenterPush || OnOffPush || RightPush)
 
-#define isOnFront (isOnLine(1,0) || isOnLine(1,1))
-#define isOnRight (isOnLine(0,0) || isOnLine(0,1))
-#define isOnBack (isOnLine(2,0) || isOnLine(2,1))
-#define isOnLeft (isOnLine(3,0) || isOnLine(3,1))
+#define isOnFront (isOnLine(1,0) || isOnLine(1,1)) // 前 (中,外)
+#define isOnRight (isOnLine(0,0) || isOnLine(0,1)) // 右 (外,中)
+#define isOnBack (isOnLine(2,0) || isOnLine(2,1)) // 後 (外,中)
+#define isOnLeft (isOnLine(3,0) || isOnLine(3,1)) // 左 (外,中)
+
+#define isOutFront isOnLine(1,1)
+#define isOutRight isOnLine(0,0)
+#define isOutBack isOnLine(2,0)
+#define isOutLeft isOnLine(3,0)
+
+#define isInFront isOnLine(1,0)
+#define isInRight isOnLine(0,1)
+#define isInBack isOnLine(2,1)
+#define isInLeft isOnLine(3,1)
+
+#define isOnOut (isOnLine(1,1) || isOnLine(0,0) || isOnLine(2,0) || isOnLine(3,0))
+#define isOnIn (isOnLine(1,0) || isOnLine(0,1) || isOnLine(2,1) || isOnLine(3,1))
+
+#define isOnAny (isOnOut || isOnIn)
 
 CytronMD motor1(PWM_DIR, 5, 4);
 CytronMD motor2(PWM_DIR, 3, 2);
@@ -57,6 +75,20 @@ int ave_mpPlus = 0;
 
 int prevIR, dirPlus, cnt;
 int dirIR = 0;
+
+int getCam() {
+   int re = 0;
+   if (OpenMV.available()) {
+      int a = OpenMV.read();
+      if (a >= 0 && a <= 70) {
+         re = a;
+      }
+      else {
+         re = 0;
+      }
+   }
+   return re;
+}
 
 int getDx(String txt) {
    int char_len = txt.length();
@@ -272,9 +304,10 @@ void LineThUpdate() {
       for(int i = 0; i < 4; i++) {
          for(int j = 0; j < 2; j++) {
             int border = 2;
+            int add = -50;
             int diff = abs(LineMax[i][j] - LineMin[i][j]);
             int threshold = LineMax[i][j] - (diff / border);
-            thresholds[i][j] = threshold;
+            thresholds[i][j] = threshold + add;
          }
       }
       txt = "done";
@@ -492,7 +525,7 @@ void kick() {
 }
 
 void followBall() {
-   int diff = 35;
+   int diff = 10;
    int S = 50;
    int MAX = 150;
    int GY = GyroGet();
@@ -521,26 +554,53 @@ void followBall() {
       motor4.setSpeed(-S);
    }
    else {
-      int dlTime = 200;
+      int dlTime = 300;
       if(isOnFront) {
+         motorStop();
+         delay(100);
          lightMotor(180);
          delay(dlTime);
       }
       if(isOnRight) {
+         motorStop();
+         delay(100);
          lightMotor(270);
          delay(dlTime);
       }
       if(isOnBack) {
+         motorStop();
+         delay(100);
          lightMotor(0);
          delay(dlTime);
       }      
       if(isOnLeft) {
+         motorStop();
+         delay(100);
          lightMotor(90);
          delay(dlTime);
       }
       else {
-         int IR = IRval(1);
-         if (IR <= 30 || IR >= 330){
+         dirIR = IRval(1);
+         if (abs(prevIR - dirIR) > 30) {
+            cnt++;
+            if (cnt == 5) {
+               cnt = 0;
+               prevIR = dirIR;
+            }
+            else {
+               dirIR = prevIR;
+            }
+         }
+         else {
+            cnt = 0;
+            prevIR = dirIR;
+         }
+
+         int IR = dirIR;
+         if(IR == 0 || IR == 5 || IR == 355) {
+            motor(0);
+         }
+         else if (IR <= 10 || IR >= 350){
             motor(IR);
          }
          else {
@@ -556,7 +616,7 @@ void followBall() {
 }
 
 void followBall2() {
-   int diff = 35;
+   int diff = 10;
    int S = 50;
    int MAX = 150;
    int GY = GyroGet();
@@ -585,35 +645,125 @@ void followBall2() {
       motor4.setSpeed(-S);
    }
    else {
-      int IR = IRval(1);
-      int toMove = 0;
+      dirIR = IRval(1);
+      if (abs(prevIR - dirIR) > 30) {
+         cnt++;
+         if (cnt == 5) {
+            cnt = 0;
+            prevIR = dirIR;
+         }
+         else {
+            dirIR = prevIR;
+         }
+      }
+      else {
+         cnt = 0;
+         prevIR = dirIR;
+      }
+      int IR = dirIR;
+
+      if(isOnFront) {
+         lightMotor(180);
+         delay(300);
+         // while(isOnFront) {
+         //    lightMotor(180);
+         // }
+         int time = millis();
+         while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
+            motorStop();
+            dirIR = IRval(1);
+            if (abs(prevIR - dirIR) > 30) {
+               cnt++;
+               if (cnt == 5) {
+                  cnt = 0;
+                  prevIR = dirIR;
+               }
+               else {
+                  dirIR = prevIR;
+               }
+            }
+            else {
+               cnt = 0;
+               prevIR = dirIR;
+            }
+            if(dirIR >= 90 && dirIR <= 270) {
+               break;
+            }
+         }
+      }
+
       if (IR <= 30 || IR >= 330){
-         toMove = IR;
+         motor(IR);
       }
       else {
          if (IR <= 180){
-            toMove = IR + 50;
+            motor(IR + 50);
          }
          else {
-            toMove = IR - 50;
+            motor(IR - 50);
          }
       }
-      double rad = toMove * PI / 180.0;
-      int x = cos(rad), y = sin(rad);
-      if(isOnFront && (y > 0)) {
-         y = 0;
-      }
-      if(isOnRight && (x > 0)) {
-         x = 0;
-      }
-      if(isOnBack && (y < 0)) {
-         y = 0;
-      }
-      if(isOnLeft && (x < 0)) {
-         x = 0;
-      }
-      toMove = int(sqrt((x + y)));
-      lightMotor(toMove);
+
+
+      //    dirIR = IRval(1);
+      //    if (abs(prevIR - dirIR) > 30) {
+      //       cnt++;
+      //       if (cnt == 5) {
+      //          cnt = 0;
+      //          prevIR = dirIR;
+      //       }
+      //       else {
+      //          dirIR = prevIR;
+      //       }
+      //    }
+      //    else {
+      //       cnt = 0;
+      //       prevIR = dirIR;
+      //    }
+
+      //    int IR = dirIR;
+      // // int IR = IRval(1);
+      // int toMove = -90;
+      // if (IR <= 30 || IR >= 330){
+      //    toMove = IR;
+      // }
+      // else {
+      //    if (IR <= 180){
+      //       toMove = IR + 50;
+      //    }
+      //    else {
+      //       toMove = IR - 50;
+      //    }
+      // }
+      // double rad = toMove * PI / 180.0;
+      // double y = cos(rad), x = sin(rad);
+      // if(isOutFront && (y > 0.0)) {
+      //    y = 0.0;
+      // }
+      // if(isOutRight && (x > 0.0)) {
+      //    x = 0.0;
+      // }
+      // if(isOutBack && (y < 0.0)) {
+      //    y = 0.0;
+      // }
+      // if(isOutLeft && (x < 0.0)) {
+      //    x = 0.0;
+      // }
+      // char debug[64];
+      // sprintf(debug,"x = %lf y = %lf",x,y);
+      // // Serial.println(debug);
+      // double result = atan2(x,y);
+      // result = result * (180 / PI);
+      // if(result < 0) {
+      //    result += 360;
+      // }
+      // // Serial.println(result);
+      // if(isOnIn) {
+      //    motorStop();
+      // }
+      // else {
+      //    motor(round(result));
+      // }
    }
 }
 
@@ -663,7 +813,7 @@ void loop() {
             display.clearDisplay();
             display.display();
             while(!CenterPush) {
-               followBall();
+               followBall2();
             }
             motorStop();
             break;
