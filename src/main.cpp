@@ -8,8 +8,6 @@
 
 #define LeftPin 33
 #define RightPin 27 
-
-#define OpenMV Serial7
  
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -78,8 +76,8 @@ int dirIR = 0;
 
 int getCam() {
    int re = 0;
-   if (OpenMV.available()) {
-      int a = OpenMV.read();
+   if (Serial7.available()) {
+      int a = Serial7.read();
       if (a >= 0 && a <= 70) {
          re = a;
       }
@@ -96,7 +94,7 @@ int getDx(String txt) {
 }
 
 int getdirIR() {
-    dirIR = IRval(1);
+  dirIR = IRval(1);
   if (abs(prevIR - dirIR) > 30) {
      cnt++; 
      if (cnt == 5) {
@@ -111,6 +109,7 @@ int getdirIR() {
      cnt = 0;
      prevIR = dirIR;
   }
+  return dirIR;
 }
 
 int GyroGet(void) {
@@ -347,6 +346,17 @@ bool isOnLine(int i, int j) {
    return (analogRead(analogPins[i][j]) > thresholds[i][j])? true: false;
 }
 
+bool isCatch() {
+  int th = 50;
+  int val = analogRead(A12);
+  if(th > val) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
 void printLine() {
    int cx = w/4, cy = h/2;
    display.clearDisplay();
@@ -426,7 +436,7 @@ void changeSpeed() {
 
 void printIMU() {
    int cx = w / 4, cy = h / 2, r = 21;
-   float deg = GyroGet(), Rad;
+   float deg = getCam(), Rad;
    display.clearDisplay();
    Rad = (deg - 90) / (180 / PI);
    display.drawCircle(cx, cy, w / 6, SSD1306_WHITE);
@@ -475,6 +485,44 @@ void motorStop() {
    motor3.setSpeed(0);
    motor4.setSpeed(0);
 }
+
+void turnFront() {
+   int diff = 35;
+   int S = 50;
+   int MAX = 200;
+   int GY = GyroGet();
+   while(GY >= diff || GY < (360 - diff)) {
+     if(GY >= diff && GY < 90) {
+        motor1.setSpeed(S);
+        motor2.setSpeed(S);
+        motor3.setSpeed(-S);
+        motor4.setSpeed(S);
+     }
+     else if(GY >= 90 && GY < 180) {
+        motor1.setSpeed(MAX);
+        motor2.setSpeed(MAX);
+        motor3.setSpeed(-MAX);
+        motor4.setSpeed(MAX);
+     }
+     else if(GY >= 180 && GY < 275) {
+        motor1.setSpeed(-MAX);
+        motor2.setSpeed(-MAX);
+        motor3.setSpeed(MAX);
+        motor4.setSpeed(-MAX);
+     }
+     else if(GY >= 275 && GY < 360 - diff) {
+        motor1.setSpeed(-S);
+        motor2.setSpeed(-S);
+        motor3.setSpeed(S);
+        motor4.setSpeed(-S);
+     }
+     else {
+      break;
+     }
+     GY = GyroGet();
+   }
+
+} 
 
 void motor(int angle) {
 
@@ -547,48 +595,31 @@ void writeEEPROM() {
   for(int i = 0; i < 4; i++) {
     for(int j = 0; j < 2; j++) {
       EEPROM.write(cnt,thresholds[i][j] / 5);
+      Serial.print(thresholds[i][j]);
+      Serial.print(" ");
       cnt++;
     }
   }
+  Serial.println("");
 }
 
-void turnFront() {
-   int diff = 10;
-   int S = 50;
-   int MAX = 150;
-   int GY = GyroGet();
-   if(GY >= diff && GY < 90) {
-      motor1.setSpeed(S);
-      motor2.setSpeed(S);
-      motor3.setSpeed(-S);
-      motor4.setSpeed(S);
-   }
-   else if(GY >= 90 && GY < 180) {
-      motor1.setSpeed(MAX);
-      motor2.setSpeed(MAX);
-      motor3.setSpeed(-MAX);
-      motor4.setSpeed(MAX);
-   }
-   else if(GY >= 180 && GY < 275) {
-      motor1.setSpeed(-MAX);
-      motor2.setSpeed(-MAX);
-      motor3.setSpeed(MAX);
-      motor4.setSpeed(-MAX);
-   }
-   else if(GY >= 275 && GY < 360 - diff) {
-      motor1.setSpeed(-S);
-      motor2.setSpeed(-S);
-      motor3.setSpeed(S);
-      motor4.setSpeed(-S);
-   } 
-} 
+
 
 void followBall2() {
+
+  turnFront();
   
   int IR = getdirIR();
   int dltime = 300;
 
-  if(false) {
+  while(isCatch() && (IR == 0 || IR == 5 || IR == 355)) {
+    lightMotor(0);
+    if(isOnFront) {
+      break; 
+    }
+  }
+
+  if(isOnFront) {
      lightMotor(180);
      delay(dltime);
      int time = millis(); 
@@ -601,7 +632,52 @@ void followBall2() {
      }
   }
 
-  if (IR <= 30 || IR >= 330){
+  if(isOnRight) {
+     lightMotor(270);
+     delay(dltime);
+     int time = millis(); 
+     while(((millis() - time) < 3000) && (IR <= 180 && IR >= 0)) {
+        motorStop();
+        IR = getdirIR(); 
+        if(IR >= 180) {
+           break;
+        } 
+     }
+  }
+
+  if(isOnBack) {
+     lightMotor(0);
+     delay(dltime);
+     int time = millis(); 
+     while(((millis() - time) < 3000) && (IR <= 270 && IR >= 90)) {
+        motorStop();
+        IR = getdirIR(); 
+        if(IR >= 270 || IR <= 90) {
+           break;
+        } 
+     }
+  }
+
+  if(isOnLeft) {
+     lightMotor(90);
+     delay(dltime);
+     int time = millis(); 
+     while(((millis() - time) < 3000) && (IR >= 180)) {
+        motorStop();
+        IR = getdirIR(); 
+        if(IR >= 0 && IR <= 180) {
+           break;
+        } 
+     }
+  }
+
+  IR = getdirIR();
+
+  if(IR == 0 || IR == 5 || IR == 355) {
+    lightMotor(0);
+  }
+
+  else if (IR <= 30 || IR >= 330){
      motor(IR);
   }
   else {
@@ -623,18 +699,22 @@ void setup() {
    pinMode(34, INPUT);
    pinMode(35, INPUT);
    pinMode(10, OUTPUT);
-   Serial.begin(9600);
+   Serial.begin(19200);
    Wire.begin();
+   Serial7.begin(19200);
    display_init();
    selectGyro(3);
    Gryo_init();
    int cnt = 0;
    for(int i = 0; i < 4; i++) {
     for(int j = 0; j < 2; j++) {
-      thresholds[i][j] = EEPROM.read(cnt) * 5 ;
+      thresholds[i][j] = EEPROM.read(cnt) * 5;
+      Serial.print(EEPROM.read(cnt) * 5);
+      Serial.print(" ");
       cnt++;
     }
   }
+  Serial.println("");
    int len = 8;
    int drawX = (display.width() / 2) - ((len / 2) * 12);
    display.clearDisplay();
@@ -642,7 +722,9 @@ void setup() {
    display.setTextColor(SSD1306_WHITE);
    display.setCursor(drawX, 10);
    display.println("Main.cpp");
-   display.display();
+   while(true) {
+    Serial.println(getCam());
+   }
 }
 
 int status = 0;
