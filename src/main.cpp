@@ -1,21 +1,21 @@
-#include "Arduino.h"
+ #include "Arduino.h"
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <MPU6050_6Axis_MotionApps20.h>
 #include <CytronMotorDriver.h>
+#include <EEPROM.h>
 
 #define LeftPin 33
-#define RightPin 27
+#define RightPin 27 
 
 #define OpenMV Serial7
-
-
+ 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 
 #define SIZE_OF_ARRAY(array) (sizeof(array) / sizeof(array[0]))
-
+ 
 #define OLED_RESET 4
 #define SCREEN_ADDRESS 0x3C
 
@@ -93,6 +93,24 @@ int getCam() {
 int getDx(String txt) {
    int char_len = txt.length();
    return (display.width() / 2) - ((char_len / 2) * 11);
+}
+
+int getdirIR() {
+    dirIR = IRval(1);
+  if (abs(prevIR - dirIR) > 30) {
+     cnt++; 
+     if (cnt == 5) {
+        cnt = 0;
+        prevIR = dirIR;
+     }
+     else {
+        dirIR = prevIR;
+     }
+  }
+  else {
+     cnt = 0;
+     prevIR = dirIR;
+  }
 }
 
 int GyroGet(void) {
@@ -390,7 +408,7 @@ void changeSpeed() {
       display.clearDisplay();
       if (speed_status <= speed_mode_len - 2) {
          display.drawTriangle(90, 45, 90, 55, 100, 50, SSD1306_WHITE);
-      }
+      } 
       if (speed_status >= 1) {
          display.drawTriangle(34, 45, 34, 55, 24, 50, SSD1306_WHITE);
       }
@@ -524,7 +542,17 @@ void kick() {
    delay(100);
 }
 
-void followBall() {
+void writeEEPROM() { 
+  int cnt = 0;
+  for(int i = 0; i < 4; i++) {
+    for(int j = 0; j < 2; j++) {
+      EEPROM.write(cnt,thresholds[i][j] / 5);
+      cnt++;
+    }
+  }
+}
+
+void turnFront() {
    int diff = 10;
    int S = 50;
    int MAX = 150;
@@ -552,222 +580,41 @@ void followBall() {
       motor2.setSpeed(-S);
       motor3.setSpeed(S);
       motor4.setSpeed(-S);
-   }
-   else {
-      int dlTime = 300;
-      if(isOnFront) {
-         motorStop();
-         delay(100);
-         lightMotor(180);
-         delay(dlTime);
-      }
-      if(isOnRight) {
-         motorStop();
-         delay(100);
-         lightMotor(270);
-         delay(dlTime);
-      }
-      if(isOnBack) {
-         motorStop();
-         delay(100);
-         lightMotor(0);
-         delay(dlTime);
-      }      
-      if(isOnLeft) {
-         motorStop();
-         delay(100);
-         lightMotor(90);
-         delay(dlTime);
-      }
-      else {
-         dirIR = IRval(1);
-         if (abs(prevIR - dirIR) > 30) {
-            cnt++;
-            if (cnt == 5) {
-               cnt = 0;
-               prevIR = dirIR;
-            }
-            else {
-               dirIR = prevIR;
-            }
-         }
-         else {
-            cnt = 0;
-            prevIR = dirIR;
-         }
-
-         int IR = dirIR;
-         if(IR == 0 || IR == 5 || IR == 355) {
-            motor(0);
-         }
-         else if (IR <= 10 || IR >= 350){
-            motor(IR);
-         }
-         else {
-            if (IR <= 180){
-               motor(IR + 50);
-            }
-            else {
-               motor(IR - 50);
-            }
-         }
-      }
-   }
-}
+   } 
+} 
 
 void followBall2() {
-   int diff = 10;
-   int S = 50;
-   int MAX = 150;
-   int GY = GyroGet();
-   if(GY >= diff && GY < 90) {
-      motor1.setSpeed(S);
-      motor2.setSpeed(S);
-      motor3.setSpeed(-S);
-      motor4.setSpeed(S);
-   }
-   else if(GY >= 90 && GY < 180) {
-      motor1.setSpeed(MAX);
-      motor2.setSpeed(MAX);
-      motor3.setSpeed(-MAX);
-      motor4.setSpeed(MAX);
-   }
-   else if(GY >= 180 && GY < 275) {
-      motor1.setSpeed(-MAX);
-      motor2.setSpeed(-MAX);
-      motor3.setSpeed(MAX);
-      motor4.setSpeed(-MAX);
-   }
-   else if(GY >= 275 && GY < 360 - diff) {
-      motor1.setSpeed(-S);
-      motor2.setSpeed(-S);
-      motor3.setSpeed(S);
-      motor4.setSpeed(-S);
-   }
-   else {
-      dirIR = IRval(1);
-      if (abs(prevIR - dirIR) > 30) {
-         cnt++;
-         if (cnt == 5) {
-            cnt = 0;
-            prevIR = dirIR;
-         }
-         else {
-            dirIR = prevIR;
-         }
-      }
-      else {
-         cnt = 0;
-         prevIR = dirIR;
-      }
-      int IR = dirIR;
+  
+  int IR = getdirIR();
+  int dltime = 300;
 
-      if(isOnFront) {
-         lightMotor(180);
-         delay(300);
-         // while(isOnFront) {
-         //    lightMotor(180);
-         // }
-         int time = millis();
-         while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
-            motorStop();
-            dirIR = IRval(1);
-            if (abs(prevIR - dirIR) > 30) {
-               cnt++;
-               if (cnt == 5) {
-                  cnt = 0;
-                  prevIR = dirIR;
-               }
-               else {
-                  dirIR = prevIR;
-               }
-            }
-            else {
-               cnt = 0;
-               prevIR = dirIR;
-            }
-            if(dirIR >= 90 && dirIR <= 270) {
-               break;
-            }
-         }
-      }
+  if(false) {
+     lightMotor(180);
+     delay(dltime);
+     int time = millis(); 
+     while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
+        motorStop();
+        IR = getdirIR(); 
+        if(IR >= 90 && IR <= 270) {
+           break;
+        } 
+     }
+  }
 
-      if (IR <= 30 || IR >= 330){
-         motor(IR);
-      }
-      else {
-         if (IR <= 180){
-            motor(IR + 50);
-         }
-         else {
-            motor(IR - 50);
-         }
-      }
-
-
-      //    dirIR = IRval(1);
-      //    if (abs(prevIR - dirIR) > 30) {
-      //       cnt++;
-      //       if (cnt == 5) {
-      //          cnt = 0;
-      //          prevIR = dirIR;
-      //       }
-      //       else {
-      //          dirIR = prevIR;
-      //       }
-      //    }
-      //    else {
-      //       cnt = 0;
-      //       prevIR = dirIR;
-      //    }
-
-      //    int IR = dirIR;
-      // // int IR = IRval(1);
-      // int toMove = -90;
-      // if (IR <= 30 || IR >= 330){
-      //    toMove = IR;
-      // }
-      // else {
-      //    if (IR <= 180){
-      //       toMove = IR + 50;
-      //    }
-      //    else {
-      //       toMove = IR - 50;
-      //    }
-      // }
-      // double rad = toMove * PI / 180.0;
-      // double y = cos(rad), x = sin(rad);
-      // if(isOutFront && (y > 0.0)) {
-      //    y = 0.0;
-      // }
-      // if(isOutRight && (x > 0.0)) {
-      //    x = 0.0;
-      // }
-      // if(isOutBack && (y < 0.0)) {
-      //    y = 0.0;
-      // }
-      // if(isOutLeft && (x < 0.0)) {
-      //    x = 0.0;
-      // }
-      // char debug[64];
-      // sprintf(debug,"x = %lf y = %lf",x,y);
-      // // Serial.println(debug);
-      // double result = atan2(x,y);
-      // result = result * (180 / PI);
-      // if(result < 0) {
-      //    result += 360;
-      // }
-      // // Serial.println(result);
-      // if(isOnIn) {
-      //    motorStop();
-      // }
-      // else {
-      //    motor(round(result));
-      // }
-   }
+  if (IR <= 30 || IR >= 330){
+     motor(IR);
+  }
+  else {
+     if (IR <= 180){
+        motor(IR + 50);
+     }
+     else {
+        motor(IR - 50);
+     }
+  } 
 }
 
-String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "RST Gyro","LineCheck","LineThUp"};
+String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "RST Gyro","LineCheck","LineThUp","EEPROM"};
 int mode_len = SIZE_OF_ARRAY(mode);
 
 void setup() {
@@ -781,6 +628,13 @@ void setup() {
    display_init();
    selectGyro(3);
    Gryo_init();
+   int cnt = 0;
+   for(int i = 0; i < 4; i++) {
+    for(int j = 0; j < 2; j++) {
+      thresholds[i][j] = EEPROM.read(cnt) * 5 ;
+      cnt++;
+    }
+  }
    int len = 8;
    int drawX = (display.width() / 2) - ((len / 2) * 12);
    display.clearDisplay();
@@ -883,6 +737,9 @@ void loop() {
             while (!CenterPush) {
                LineThUpdate();
             }
+            break;
+         case 8:
+            writeEEPROM();
             break;
          default:
             break;
