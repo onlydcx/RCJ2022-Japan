@@ -75,9 +75,9 @@ int prevIR, dirPlus, cnt;
 int dirIR = 0;
 
 int getCam() {
-   int re = 0;
+   byte re = 0;
    if (Serial7.available()) {
-      int a = Serial7.read();
+      byte a = Serial7.read();
       if (a >= 0 && a <= 70) {
          re = a;
       }
@@ -85,7 +85,7 @@ int getCam() {
          re = 0;
       }
    }
-   return re;
+   return (int)re;
 }
 
 int getDx(String txt) {
@@ -487,9 +487,9 @@ void motorStop() {
 }
 
 void turnFront() {
-   int diff = 35;
+   int diff = 10;
    int S = 50;
-   int MAX = 200;
+   int MAX = 170;
    int GY = GyroGet();
    while(GY >= diff || GY < (360 - diff)) {
      if(GY >= diff && GY < 90) {
@@ -526,6 +526,7 @@ void turnFront() {
 
 void motor(int angle) {
 
+
    double motor_power[4];
    double max_power; // ????
 
@@ -552,6 +553,7 @@ void motor(int angle) {
       }
       motor_power[i] = ave_mpPlus / 10;
    }
+   
    motor1.setSpeed(-motor_power[1]);
    motor2.setSpeed(motor_power[0]);
    motor3.setSpeed(motor_power[2]);
@@ -559,6 +561,7 @@ void motor(int angle) {
 }
 
 void lightMotor(int angle) {
+  
    double motor_power[4];
    double max_power; // ????
 
@@ -607,85 +610,91 @@ void writeEEPROM() {
 
 void followBall2() {
 
-  turnFront();
-  
   int IR = getdirIR();
-  int dltime = 300;
+  int dltime = 150;
 
   while(isCatch() && (IR == 0 || IR == 5 || IR == 355)) {
     lightMotor(0);
-    if(isOnFront) {
-      break; 
-    }
+//    if(isOnFront) {
+//       lightMotor(180);
+//       delay(dltime);
+//       int time = millis(); 
+//       while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
+//          motorStop();
+//          IR = getdirIR(); 
+//          if(IR >= 90 && IR <= 270) {
+//             break;
+//          } 
+//       }
+//    }
   }
 
-  if(isOnFront) {
-     lightMotor(180);
-     delay(dltime);
-     int time = millis(); 
-     while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
-        motorStop();
-        IR = getdirIR(); 
-        if(IR >= 90 && IR <= 270) {
-           break;
-        } 
-     }
-  }
-
-  if(isOnRight) {
-     lightMotor(270);
-     delay(dltime);
-     int time = millis(); 
-     while(((millis() - time) < 3000) && (IR <= 180 && IR >= 0)) {
-        motorStop();
-        IR = getdirIR(); 
-        if(IR >= 180) {
-           break;
-        } 
-     }
-  }
-
-  if(isOnBack) {
-     lightMotor(0);
-     delay(dltime);
-     int time = millis(); 
-     while(((millis() - time) < 3000) && (IR <= 270 && IR >= 90)) {
-        motorStop();
-        IR = getdirIR(); 
-        if(IR >= 270 || IR <= 90) {
-           break;
-        } 
-     }
-  }
-
-  if(isOnLeft) {
-     lightMotor(90);
-     delay(dltime);
-     int time = millis(); 
-     while(((millis() - time) < 3000) && (IR >= 180)) {
-        motorStop();
-        IR = getdirIR(); 
-        if(IR >= 0 && IR <= 180) {
-           break;
-        } 
-     }
-  }
+//  if(isOnFront) {
+//     lightMotor(180);
+//     delay(dltime);
+//     int time = millis(); 
+//     while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
+//        motorStop();
+//        IR = getdirIR(); 
+//        if(IR >= 90 && IR <= 270) {
+//           break;
+//        } 
+//     }
+//  }
+//
+//  if(isOnRight) {
+//     lightMotor(270);
+//     delay(dltime);
+//     int time = millis(); 
+//     while(((millis() - time) < 3000) && (IR <= 180 && IR >= 0)) {
+//        motorStop();
+//        IR = getdirIR(); 
+//        if(IR >= 180) {
+//           break;
+//        } 
+//     }
+//  }
+//
+//  if(isOnBack) {
+//     lightMotor(0);
+//     delay(dltime);
+//     int time = millis(); 
+//     while(((millis() - time) < 3000) && (IR <= 270 && IR >= 90)) {
+//        motorStop();
+//        IR = getdirIR(); 
+//        if(IR >= 270 || IR <= 90) {
+//           break;
+//        } 
+//     }
+//  }
+//
+//  if(isOnLeft) {
+//     lightMotor(90);
+//     delay(dltime);
+//     int time = millis(); 
+//     while(((millis() - time) < 3000) && (IR >= 180)) {
+//        motorStop();
+//        IR = getdirIR(); 
+//        if(IR >= 0 && IR <= 180) {
+//           break;
+//        } 
+//     }
+//  }
 
   IR = getdirIR();
 
   if(IR == 0 || IR == 5 || IR == 355) {
-    lightMotor(0);
+    motor(0);
   }
-
   else if (IR <= 30 || IR >= 330){
-     motor(IR);
+    motor(IR);
   }
   else {
      if (IR <= 180){
-        motor(IR + 50);
+        motor(IR + 60);
      }
      else {
-        motor(IR - 50);
+        motor(IR - 60);
      }
   } 
 }
@@ -722,9 +731,7 @@ void setup() {
    display.setTextColor(SSD1306_WHITE);
    display.setCursor(drawX, 10);
    display.println("Main.cpp");
-   while(true) {
-    Serial.println(getCam());
-   }
+   Serial.println("Main.cpp");
 }
 
 int status = 0;
