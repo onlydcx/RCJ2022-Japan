@@ -1,4 +1,4 @@
- #include "Arduino.h"
+#include "Arduino.h"
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -21,8 +21,8 @@
 #define h display.height()
 
 #define LeftPush isPush(30)
-#define CenterPush isPush(33)
-#define OnOffPush isPush(31)
+#define CenterPush isPush(31)
+#define OnOffPush isPush(33)
 #define RightPush isPush(27)
 #define AnyPush (LeftPush || CenterPush || OnOffPush || RightPush)
 
@@ -74,6 +74,19 @@ int ave_mpPlus = 0;
 int prevIR, dirPlus, cnt;
 int dirIR = 0;
 
+int getVah(int f) {
+   byte val = 0;
+   Wire.beginTransmission(0x0E);
+   Wire.write(f);
+   Wire.endTransmission();
+   // Wire.endTransmission(false); // falseの方が良いらしい...?
+   Wire.requestFrom(0x0E, 1);
+   while (Wire.available()) {
+      val = Wire.read();
+   }
+   return (int)val;
+}
+
 int getCam() {
    byte re = 0;
    if (Serial7.available()) {
@@ -91,6 +104,31 @@ int getCam() {
 int getDx(String txt) {
    int char_len = txt.length();
    return (display.width() / 2) - ((char_len / 2) * 11);
+}
+
+int IRval(int i) {
+   int a = getVah(0x04);
+   int b = getVah(0x05);
+   int c = getVah(0x06);
+   int d = getVah(0x07);
+   int re_angle;
+   int re_strength;
+
+   if (d < 10) {
+      re_angle = a;
+      re_strength = b;
+   }
+   else {
+      re_angle = c;
+      re_strength = d;
+   }
+
+   if(i != 1) {
+      return re_strength;
+   }
+   else {
+      return re_angle*5;
+   }
 }
 
 int getdirIR() {
@@ -183,43 +221,9 @@ void selectGyro(int number) {
    }
 }
 
-int getVah(int f) {
-   byte val = 0;
-   Wire.beginTransmission(0x0E);
-   Wire.write(f);
-   Wire.endTransmission();
-   // Wire.endTransmission(false); // falseの方が良いらしい...?
-   Wire.requestFrom(0x0E, 1);
-   while (Wire.available()) {
-      val = Wire.read();
-   }
-   return (int)val;
-}
 
-int IRval(int i) {
-   int a = getVah(0x04);
-   int b = getVah(0x05);
-   int c = getVah(0x06);
-   int d = getVah(0x07);
-   int re_angle;
-   int re_strength;
 
-   if (d < 10) {
-      re_angle = a;
-      re_strength = b;
-   }
-   else {
-      re_angle = c;
-      re_strength = d;
-   }
 
-   if(i != 1) {
-      return re_strength;
-   }
-   else {
-      return re_angle*5;
-   }
-}
 
 bool isPush(int num) {
    if (digitalRead(num)) {
@@ -349,12 +353,13 @@ bool isOnLine(int i, int j) {
 bool isCatch() {
   int th = 50;
   int val = analogRead(A12);
-  if(th > val) {
-    return true;
-  }
-  else {
-    return false;
-  }
+  return false;
+//   if(th > val) {
+//     return true;
+//   }
+//   else {
+//     return false;
+//   }
 }
 
 void printLine() {
@@ -525,22 +530,17 @@ void turnFront() {
 } 
 
 void motor(int angle) {
-
-
    double motor_power[4];
-   double max_power; // ????
-
+      double max_power;
    motor_power[0] = cos((45 - angle) / 180.0 * PI);
    motor_power[1] = cos((135 - angle) / 180.0 * PI);
    motor_power[2] = cos((-45 - angle) / 180.0 * PI);
    motor_power[3] = cos((-135 - angle) / 180.0 * PI);
-
    for (int i = 0; i < 4; i++) {
       if (abs(motor_power[i]) > max_power) {
          max_power = abs(motor_power[i]);
       }
    }
-
    for (int i = 0; i < 4; i++) {
       motor_power[i] = speed * motor_power[i] / max_power;
       for (int j = 9; j > 0; j--) {
@@ -553,7 +553,6 @@ void motor(int angle) {
       }
       motor_power[i] = ave_mpPlus / 10;
    }
-   
    motor1.setSpeed(-motor_power[1]);
    motor2.setSpeed(motor_power[0]);
    motor3.setSpeed(motor_power[2]);
@@ -561,25 +560,20 @@ void motor(int angle) {
 }
 
 void lightMotor(int angle) {
-  
    double motor_power[4];
-   double max_power; // ????
-
+   double max_power;
    motor_power[0] = cos((45 - angle) / 180.0 * PI);
    motor_power[1] = cos((135 - angle) / 180.0 * PI);
    motor_power[2] = cos((-45 - angle) / 180.0 * PI);
    motor_power[3] = cos((-135 - angle) / 180.0 * PI);
-
    for (int i = 0; i < 4; i++) {
       if (abs(motor_power[i]) > max_power) {
          max_power = abs(motor_power[i]);
       }
    }
-
    for (int i = 0; i < 4; i++) {
       motor_power[i] = speed * motor_power[i] / max_power;
    }
-
    motor1.setSpeed(-motor_power[1]);
    motor2.setSpeed(motor_power[0]);
    motor3.setSpeed(motor_power[2]);
@@ -615,18 +609,18 @@ void followBall2() {
 
   while(isCatch() && (IR == 0 || IR == 5 || IR == 355)) {
     lightMotor(0);
-//    if(isOnFront) {
-//       lightMotor(180);
-//       delay(dltime);
-//       int time = millis(); 
-//       while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
-//          motorStop();
-//          IR = getdirIR(); 
-//          if(IR >= 90 && IR <= 270) {
-//             break;
-//          } 
-//       }
-//    }
+   // if(isOnFront) {
+   //    lightMotor(180);
+   //    delay(dltime);
+   //    int time = millis(); 
+   //    while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
+   //       motorStop();
+   //       IR = getdirIR(); 
+   //       if(IR >= 90 && IR <= 270) {
+   //          break;
+   //       } 
+   //    }
+   // }
   }
 
 //  if(isOnFront) {
