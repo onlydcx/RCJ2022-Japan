@@ -5,6 +5,15 @@
 #include <MPU6050_6Axis_MotionApps20.h>
 #include <CytronMotorDriver.h>
 #include <EEPROM.h>
+#include <Servo.h>
+
+#define MAX_SIGNAL 2000
+#define MIN_SIGNAL 1000
+#define ESC_PIN 13
+int volume = 0;
+char message[50];
+
+Servo esc;
 
 #define LeftPin 33
 #define RightPin 27 
@@ -73,6 +82,12 @@ int ave_mpPlus = 0;
 
 int prevIR, dirPlus, cnt;
 int dirIR = 0;
+
+void dribler(bool flag) {
+   if(flag) volume = 1800;
+   else volume = 1000;
+   esc.writeMicroseconds(volume);
+}
 
 int getVah(int f) {
    byte val = 0;
@@ -351,9 +366,14 @@ bool isOnLine(int i, int j) {
 }
 
 bool isCatch() {
-  int th = 50;
+  int th = 80;
   int val = analogRead(A12);
-  return false;
+  if(val < th) {
+      return true;
+  }
+  else {
+   return false;
+  }
 //   if(th > val) {
 //     return true;
 //   }
@@ -441,7 +461,7 @@ void changeSpeed() {
 
 void printIMU() {
    int cx = w / 4, cy = h / 2, r = 21;
-   float deg = getCam(), Rad;
+   float deg = GyroGet(), Rad;
    display.clearDisplay();
    Rad = (deg - 90) / (180 / PI);
    display.drawCircle(cx, cy, w / 6, SSD1306_WHITE);
@@ -531,7 +551,7 @@ void turnFront() {
 
 void motor(int angle) {
    double motor_power[4];
-      double max_power;
+   double max_power;
    motor_power[0] = cos((45 - angle) / 180.0 * PI);
    motor_power[1] = cos((135 - angle) / 180.0 * PI);
    motor_power[2] = cos((-45 - angle) / 180.0 * PI);
@@ -553,10 +573,18 @@ void motor(int angle) {
       }
       motor_power[i] = ave_mpPlus / 10;
    }
-   motor1.setSpeed(-motor_power[1]);
-   motor2.setSpeed(motor_power[0]);
-   motor3.setSpeed(motor_power[2]);
-   motor4.setSpeed(motor_power[3]);
+   int gy = GyroGet();
+   int addP = 0;
+   if(gy > 3 && gy < 180) {
+      addP = 30;
+   }
+   else if (gy >= 180 && gy < 358) {
+      addP = -30;
+   }
+   motor1.setSpeed(-motor_power[1] + addP);
+   motor2.setSpeed(motor_power[0] + addP);
+   motor3.setSpeed(motor_power[2] + addP);
+   motor4.setSpeed(motor_power[3] + addP);
 }
 
 void lightMotor(int angle) {
@@ -588,6 +616,9 @@ void kick() {
 }
 
 void writeEEPROM() { 
+   // dribler(1);
+   // delay(1000);
+   // dribler(0);
   int cnt = 0;
   for(int i = 0; i < 4; i++) {
     for(int j = 0; j < 2; j++) {
@@ -600,15 +631,14 @@ void writeEEPROM() {
   Serial.println("");
 }
 
-
-
 void followBall2() {
 
   int IR = getdirIR();
   int dltime = 150;
 
-  while(isCatch() && (IR == 0 || IR == 5 || IR == 355)) {
-    lightMotor(0);
+   while(isCatch() && (IR == 0 || IR == 5 || IR == 355)) {
+      dribler(1);
+      lightMotor(0);
    // if(isOnFront) {
    //    lightMotor(180);
    //    delay(dltime);
@@ -675,22 +705,25 @@ void followBall2() {
 //     }
 //  }
 
-  IR = getdirIR();
+      dribler(0);
 
-  if(IR == 0 || IR == 5 || IR == 355) {
-    motor(0);
-  }
-  else if (IR <= 30 || IR >= 330){
-    motor(IR);
-  }
-  else {
-     if (IR <= 180){
-        motor(IR + 60);
-     }
-     else {
-        motor(IR - 60);
-     }
-  } 
+
+   IR = getdirIR();
+
+   if(IR == 0 || IR == 5 || IR == 355) {
+      motor(0);
+   }
+   else if (IR <= 30 || IR >= 330){
+      motor(IR);
+   }
+   else {
+      if (IR <= 180){
+         motor(IR + 60);
+      }
+      else {
+         motor(IR - 60);
+      }
+   } 
 }
 
 String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "RST Gyro","LineCheck","LineThUp","EEPROM"};
@@ -710,14 +743,14 @@ void setup() {
    Gryo_init();
    int cnt = 0;
    for(int i = 0; i < 4; i++) {
-    for(int j = 0; j < 2; j++) {
-      thresholds[i][j] = EEPROM.read(cnt) * 5;
-      Serial.print(EEPROM.read(cnt) * 5);
-      Serial.print(" ");
-      cnt++;
-    }
-  }
-  Serial.println("");
+      for(int j = 0; j < 2; j++) {
+         thresholds[i][j] = EEPROM.read(cnt) * 5;
+         Serial.print(EEPROM.read(cnt) * 5);
+         Serial.print(" ");
+         cnt++;
+      }
+   }
+   Serial.println("");
    int len = 8;
    int drawX = (display.width() / 2) - ((len / 2) * 12);
    display.clearDisplay();
@@ -726,6 +759,13 @@ void setup() {
    display.setCursor(drawX, 10);
    display.println("Main.cpp");
    Serial.println("Main.cpp");
+
+   esc.attach(ESC_PIN);  //ESCへの出力ピンをアタッチします
+   esc.writeMicroseconds(MAX_SIGNAL);  //ESCへ最大のパルス幅を指示します
+   delay(2000);
+   esc.writeMicroseconds(MIN_SIGNAL);  //ESCへ最小のパルス幅を指示します
+   delay(2000);
+   volume = 1000;
 }
 
 int status = 0;
