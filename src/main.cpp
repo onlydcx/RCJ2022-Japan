@@ -85,7 +85,7 @@ int dirIR = 0;
 
 void dribler(bool flag) {
    if(flag) volume = 1800;
-   else volume = 1000;
+   else volume = 1200;
    esc.writeMicroseconds(volume);
 }
 
@@ -366,7 +366,7 @@ bool isOnLine(int i, int j) {
 }
 
 bool isCatch() {
-  int th = 80;
+  int th = 100;
   int val = analogRead(A12);
   if(val < th) {
       return true;
@@ -581,6 +581,9 @@ void motor(int angle) {
    else if (gy >= 180 && gy < 358) {
       addP = -30;
    }
+   if(gy > 90 && gy < 270) {
+      turnFront();
+   }
    motor1.setSpeed(-motor_power[1] + addP);
    motor2.setSpeed(motor_power[0] + addP);
    motor3.setSpeed(motor_power[2] + addP);
@@ -710,21 +713,74 @@ void followBall2() {
 
    IR = getdirIR();
 
-   if(IR == 0 || IR == 5 || IR == 355) {
-      motor(0);
-   }
-   else if (IR <= 30 || IR >= 330){
-      motor(IR);
-   }
-   else {
-      if (IR <= 180){
-         motor(IR + 60);
+            dirIR = IRval(1);
+         if (abs(prevIR - dirIR) > 110) {
+            cnt++;
+            if (cnt == 5) {
+               cnt = 0;
+               prevIR = dirIR;
+            }
+            else {
+               dirIR = prevIR;
+            }
+         }
+         else {
+            cnt = 0;
+            prevIR = dirIR;
+         }
+         if (dirIR <= 35) {
+            dirPlus = dirIR ;
+         }
+         else if (dirIR >= 325) {
+            dirPlus = (360 - dirIR);
+         } 
+         else {
+            dirPlus = 50;
+         }
+
+         dirPlus = dirPlus + 10;
+
+         if (getVah(0x05) <= 50 && getVah(0x07) <= 10) {
+            motor(dirIR);
+         }
+         else if (getVah(0x05) >= 100 && getVah(0x07) >= 15) {
+            if (dirIR <= 5 || dirIR >= 355) {
+               motor(0);
+            }
+            else {
+               if (dirIR <= 180) {
+                  motor(dirIR + dirPlus * 2);
+               } 
+               else {
+                  motor(dirIR - dirPlus * 2);
+               }
+            }
+         } 
+         else {
+            if (dirIR <= 180) {
+               motor(dirIR + dirPlus);
+            } 
+            else {
+               motor(dirIR - dirPlus);
+            }
+         }
       }
-      else {
-         motor(IR - 60);
-      }
-   } 
-}
+
+   // if(IR == 0 || IR == 5 || IR == 355) {
+   //    motor(0);
+   // }
+   // else if (IR <= 30 || IR >= 330){
+   //    motor(IR);
+   // }
+   // else {
+   //    if (IR <= 180){
+   //       motor(IR + 60);
+   //    }
+   //    else {
+   //       motor(IR - 60);
+   //    }
+   // } 
+// }
 
 String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "RST Gyro","LineCheck","LineThUp","EEPROM"};
 int mode_len = SIZE_OF_ARRAY(mode);
