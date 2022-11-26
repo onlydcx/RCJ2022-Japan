@@ -84,7 +84,7 @@ int prevIR, dirPlus, cnt;
 int dirIR = 0;
 
 void dribler(bool flag) {
-   if(flag) volume = 1800;
+   if(flag) volume = 1500;
    else volume = 1200;
    esc.writeMicroseconds(volume);
 }
@@ -743,14 +743,14 @@ void followBall2() {
          if (getVah(0x05) <= 50 && getVah(0x07) <= 10) {
             motor(dirIR);
          }
-         else if (getVah(0x05) >= 100 && getVah(0x07) >= 15) {
+         else if (getVah(0x05) >= 75 && getVah(0x07) >= 15) {
             if (dirIR <= 5 || dirIR >= 355) {
                motor(0);
             }
             else {
                if (dirIR <= 180) {
                   motor(dirIR + dirPlus * 2);
-               } 
+               }
                else {
                   motor(dirIR - dirPlus * 2);
                }
@@ -822,6 +822,9 @@ void setup() {
    esc.writeMicroseconds(MIN_SIGNAL);  //ESCへ最小のパルス幅を指示します
    delay(2000);
    volume = 1000;
+   // while(1) {
+   //    Serial.println(getVah(0x07));
+   // }
 }
 
 int status = 0;
