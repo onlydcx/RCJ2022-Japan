@@ -83,9 +83,10 @@ int ave_mpPlus = 0;
 int prevIR, dirPlus, cnt;
 int dirIR = 0;
 
-void dribler(bool flag) {
-   if(flag) volume = 1500;
-   else volume = 1200;
+void dribler(int mode) {
+   if(mode == 0) volume = 1000;
+   if(mode == 1) volume = 1200;
+   if(mode == 2) volume = 1500;
    esc.writeMicroseconds(volume);
 }
 
@@ -147,22 +148,22 @@ int IRval(int i) {
 }
 
 int getdirIR() {
-  dirIR = IRval(1);
-  if (abs(prevIR - dirIR) > 30) {
-     cnt++; 
-     if (cnt == 5) {
-        cnt = 0;
-        prevIR = dirIR;
-     }
-     else {
-        dirIR = prevIR;
-     }
-  }
-  else {
-     cnt = 0;
-     prevIR = dirIR;
-  }
-  return dirIR;
+   dirIR = IRval(1);
+   if (abs(prevIR - dirIR) > 30) {
+      cnt++; 
+      if (cnt == 5) {
+         cnt = 0;
+         prevIR = dirIR;
+      }
+      else {
+         dirIR = prevIR;
+      }
+   }
+   else {
+      cnt = 0;
+      prevIR = dirIR;
+   }
+   return dirIR;
 }
 
 int GyroGet(void) {
@@ -236,10 +237,6 @@ void selectGyro(int number) {
    }
 }
 
-
-
-
-
 bool isPush(int num) {
    if (digitalRead(num)) {
       while (digitalRead(num)) {
@@ -257,7 +254,6 @@ bool isPush(int num) {
 void display_init() {
    if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
       Serial.println(F("SSD1306 allocation failed"));
-      // for (;;) ;
    }
 }
 
@@ -374,12 +370,6 @@ bool isCatch() {
   else {
    return false;
   }
-//   if(th > val) {
-//     return true;
-//   }
-//   else {
-//     return false;
-//   }
 }
 
 void printLine() {
@@ -517,36 +507,35 @@ void turnFront() {
    int MAX = 170;
    int GY = GyroGet();
    while(GY >= diff || GY < (360 - diff)) {
-     if(GY >= diff && GY < 90) {
-        motor1.setSpeed(S);
-        motor2.setSpeed(S);
-        motor3.setSpeed(-S);
-        motor4.setSpeed(S);
-     }
-     else if(GY >= 90 && GY < 180) {
-        motor1.setSpeed(MAX);
-        motor2.setSpeed(MAX);
-        motor3.setSpeed(-MAX);
-        motor4.setSpeed(MAX);
-     }
-     else if(GY >= 180 && GY < 275) {
-        motor1.setSpeed(-MAX);
-        motor2.setSpeed(-MAX);
-        motor3.setSpeed(MAX);
-        motor4.setSpeed(-MAX);
-     }
-     else if(GY >= 275 && GY < 360 - diff) {
-        motor1.setSpeed(-S);
-        motor2.setSpeed(-S);
-        motor3.setSpeed(S);
-        motor4.setSpeed(-S);
-     }
-     else {
-      break;
-     }
-     GY = GyroGet();
+   if(GY >= diff && GY < 90) {
+      motor1.setSpeed(S);
+      motor2.setSpeed(S);
+      motor3.setSpeed(-S);
+      motor4.setSpeed(S);
    }
-
+   else if(GY >= 90 && GY < 180) {
+      motor1.setSpeed(MAX);
+      motor2.setSpeed(MAX);
+      motor3.setSpeed(-MAX);
+      motor4.setSpeed(MAX);
+   }
+   else if(GY >= 180 && GY < 275) {
+      motor1.setSpeed(-MAX);
+      motor2.setSpeed(-MAX);
+      motor3.setSpeed(MAX);
+      motor4.setSpeed(-MAX);
+   }
+   else if(GY >= 275 && GY < 360 - diff) {
+      motor1.setSpeed(-S);
+      motor2.setSpeed(-S);
+      motor3.setSpeed(S);
+      motor4.setSpeed(-S);
+   }
+   else {
+      break;
+   }
+      GY = GyroGet();
+   }
 } 
 
 void motor(int angle) {
@@ -618,10 +607,7 @@ void kick() {
    delay(100);
 }
 
-void writeEEPROM() { 
-   // dribler(1);
-   // delay(1000);
-   // dribler(0);
+void writeEEPROM() {  
   int cnt = 0;
   for(int i = 0; i < 4; i++) {
     for(int j = 0; j < 2; j++) {
@@ -641,7 +627,8 @@ void followBall2() {
 
    while(isCatch() && (IR == 0 || IR == 5 || IR == 355)) {
       dribler(1);
-      lightMotor(0);
+      // lightMotor(0);
+      motor(0);
    // if(isOnFront) {
    //    lightMotor(180);
    //    delay(dltime);
@@ -708,63 +695,62 @@ void followBall2() {
 //     }
 //  }
 
-      dribler(0);
-
+   dribler(0);
 
    IR = getdirIR();
+   dirIR = IRval(1);
 
-            dirIR = IRval(1);
-         if (abs(prevIR - dirIR) > 110) {
-            cnt++;
-            if (cnt == 5) {
-               cnt = 0;
-               prevIR = dirIR;
-            }
-            else {
-               dirIR = prevIR;
-            }
+   if (abs(prevIR - dirIR) > 110) {
+      cnt++;
+      if (cnt == 5) {
+         cnt = 0;
+         prevIR = dirIR;
+      }
+      else {
+         dirIR = prevIR;
+      }
+   }
+   else {
+      cnt = 0;
+      prevIR = dirIR;
+   }
+   if (dirIR <= 35) {
+      dirPlus = dirIR ;
+   }
+   else if (dirIR >= 325) {
+      dirPlus = (360 - dirIR);
+   } 
+   else {
+      dirPlus = 50;
+   }
+
+   dirPlus = dirPlus + 10;
+
+   if (getVah(0x05) <= 50 && getVah(0x07) <= 10) {
+      motor(dirIR);
+   }
+   else if (getVah(0x05) >= 75 && getVah(0x07) >= 15) {
+      if (dirIR <= 5 || dirIR >= 355) {
+         motor(0);
+      }
+      else {
+         if (dirIR <= 180) {
+            motor(dirIR + dirPlus * 2);
          }
          else {
-            cnt = 0;
-            prevIR = dirIR;
-         }
-         if (dirIR <= 35) {
-            dirPlus = dirIR ;
-         }
-         else if (dirIR >= 325) {
-            dirPlus = (360 - dirIR);
-         } 
-         else {
-            dirPlus = 50;
-         }
-
-         dirPlus = dirPlus + 10;
-
-         if (getVah(0x05) <= 50 && getVah(0x07) <= 10) {
-            motor(dirIR);
-         }
-         else if (getVah(0x05) >= 75 && getVah(0x07) >= 15) {
-            if (dirIR <= 5 || dirIR >= 355) {
-               motor(0);
-            }
-            else {
-               if (dirIR <= 180) {
-                  motor(dirIR + dirPlus * 2);
-               }
-               else {
-                  motor(dirIR - dirPlus * 2);
-               }
-            }
-         } 
-         else {
-            if (dirIR <= 180) {
-               motor(dirIR + dirPlus);
-            } 
-            else {
-               motor(dirIR - dirPlus);
-            }
+            motor(dirIR - dirPlus * 2);
          }
       }
+   } 
+   else {
+      if (dirIR <= 180) {
+         motor(dirIR + dirPlus);
+      } 
+      else {
+         motor(dirIR - dirPlus);
+      }
+   }
+}
 
    // if(IR == 0 || IR == 5 || IR == 355) {
    //    motor(0);
@@ -781,6 +767,78 @@ void followBall2() {
    //    }
    // } 
 // }
+
+void followBall3() {
+   int IR = getdirIR(); // IRval(1)はNG..?
+   int dis = IRval(0x05); // or 0x07
+   if(isOnAny) {
+      if(isOnFront) {
+         motor(180);
+         int time = millis(); 
+         while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
+            motorStop();
+            IR = getdirIR(); 
+            if(IR >= 90 && IR <= 270) {
+               break;
+            } 
+         }
+      }
+      if(isOnRight) {
+         motor(270);
+         int time = millis(); 
+         while(((millis() - time) < 3000) && (IR <= 180 && IR >= 0)) {
+            motorStop();
+            IR = getdirIR(); 
+            if(IR >= 180) {
+               break;
+            } 
+         }
+      }
+      if(isOnBack) {
+         motor(0);
+         int time = millis(); 
+         while(((millis() - time) < 3000) && (IR <= 270 && IR >= 90)) {
+            motorStop();
+            IR = getdirIR(); 
+            if(IR >= 270 || IR <= 90) {
+               break;
+            } 
+         }
+      }
+      if(isOnLeft) {
+         motor(90);
+         int time = millis(); 
+         while(((millis() - time) < 3000) && (IR >= 180)) {
+            motorStop();
+            IR = getdirIR(); 
+            if(IR >= 0 && IR <= 180) {
+               break;
+            } 
+         }
+      }
+   }
+   if(dis < 50) {
+      motor(IR);
+   }
+   else {
+      if(IR <= 5 || IR >= 355) {
+         dribler(1);
+         motor(0);
+         if(isCatch()) {
+            dribler(2);
+         }
+      }
+      else {
+         dribler(0);
+         if(IR < 180) {
+            motor(IR + 30);
+         }
+         else {
+            motor(IR - 30);
+         }
+      }
+   }
+}
 
 String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "RST Gyro","LineCheck","LineThUp","EEPROM"};
 int mode_len = SIZE_OF_ARRAY(mode);
@@ -814,17 +872,13 @@ void setup() {
    display.setTextColor(SSD1306_WHITE);
    display.setCursor(drawX, 10);
    display.println("Main.cpp");
-   Serial.println("Main.cpp");
 
-   esc.attach(ESC_PIN);  //ESCへの出力ピンをアタッチします
-   esc.writeMicroseconds(MAX_SIGNAL);  //ESCへ最大のパルス幅を指示します
+   esc.attach(ESC_PIN);
+   esc.writeMicroseconds(MAX_SIGNAL);
    delay(2000);
-   esc.writeMicroseconds(MIN_SIGNAL);  //ESCへ最小のパルス幅を指示します
+   esc.writeMicroseconds(MIN_SIGNAL);
    delay(2000);
-   volume = 1000;
-   // while(1) {
-   //    Serial.println(getVah(0x07));
-   // }
+   dribler(0);
 }
 
 int status = 0;
