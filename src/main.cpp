@@ -626,7 +626,7 @@ void followBall2() {
   int dltime = 150;
 
    while(isCatch() && (IR == 0 || IR == 5 || IR == 355)) {
-      dribler(1);
+      dribler(2);
       // lightMotor(0);
       motor(0);
    // if(isOnFront) {
@@ -695,7 +695,7 @@ void followBall2() {
 //     }
 //  }
 
-   dribler(0);
+   dribler(1);
 
    IR = getdirIR();
    dirIR = IRval(1);
@@ -769,75 +769,7 @@ void followBall2() {
 // }
 
 void followBall3() {
-   int IR = getdirIR(); // IRval(1)はNG..?
-   int dis = IRval(0x05); // or 0x07
-   if(isOnAny) {
-      if(isOnFront) {
-         motor(180);
-         int time = millis(); 
-         while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
-            motorStop();
-            IR = getdirIR(); 
-            if(IR >= 90 && IR <= 270) {
-               break;
-            } 
-         }
-      }
-      if(isOnRight) {
-         motor(270);
-         int time = millis(); 
-         while(((millis() - time) < 3000) && (IR <= 180 && IR >= 0)) {
-            motorStop();
-            IR = getdirIR(); 
-            if(IR >= 180) {
-               break;
-            } 
-         }
-      }
-      if(isOnBack) {
-         motor(0);
-         int time = millis(); 
-         while(((millis() - time) < 3000) && (IR <= 270 && IR >= 90)) {
-            motorStop();
-            IR = getdirIR(); 
-            if(IR >= 270 || IR <= 90) {
-               break;
-            } 
-         }
-      }
-      if(isOnLeft) {
-         motor(90);
-         int time = millis(); 
-         while(((millis() - time) < 3000) && (IR >= 180)) {
-            motorStop();
-            IR = getdirIR(); 
-            if(IR >= 0 && IR <= 180) {
-               break;
-            } 
-         }
-      }
-   }
-   if(dis < 50) {
-      motor(IR);
-   }
-   else {
-      if(IR <= 5 || IR >= 355) {
-         dribler(1);
-         motor(0);
-         if(isCatch()) {
-            dribler(2);
-         }
-      }
-      else {
-         dribler(0);
-         if(IR < 180) {
-            motor(IR + 30);
-         }
-         else {
-            motor(IR - 30);
-         }
-      }
-   }
+   
 }
 
 String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "RST Gyro","LineCheck","LineThUp","EEPROM"};
@@ -905,6 +837,7 @@ void loop() {
             while(!CenterPush) {
                followBall2();
             }
+            dribler(0);
             motorStop();
             break;
          case 1:
