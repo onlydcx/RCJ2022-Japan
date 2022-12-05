@@ -30,8 +30,8 @@ Servo esc;
 #define h display.height()
 
 #define LeftPush isPush(30)
-#define CenterPush isPush(31)
-#define OnOffPush isPush(33)
+#define CenterPush isPush(25)
+#define OnOffPush isPush(31)
 #define RightPush isPush(27)
 #define AnyPush (LeftPush || CenterPush || OnOffPush || RightPush)
 
@@ -365,7 +365,7 @@ bool isCatch() {
   int th = 100;
   int val = analogRead(A12);
   if(val < th) {
-      return true;
+      return false;
   }
   else {
    return false;
@@ -769,6 +769,21 @@ void followBall2() {
 // }
 
 void followBall3() {
+   int ball = IRval(1);
+   if(ball <= 10 || ball == 355) {
+      while(isCatch()) {
+         motor(0);
+         if(!isCatch()) break;
+      }
+   }
+   else {
+      if(ball <= 180) {
+         motor(ball+50);
+      }
+      else {
+         motor(ball-50);
+      }
+   }
    
 }
 
@@ -777,7 +792,7 @@ int mode_len = SIZE_OF_ARRAY(mode);
 
 void setup() {
    pinMode(27, INPUT);
-   pinMode(33, INPUT);
+   pinMode(25, INPUT);
    pinMode(34, INPUT);
    pinMode(35, INPUT);
    pinMode(10, OUTPUT);
@@ -791,8 +806,8 @@ void setup() {
    for(int i = 0; i < 4; i++) {
       for(int j = 0; j < 2; j++) {
          thresholds[i][j] = EEPROM.read(cnt) * 5;
-         Serial.print(EEPROM.read(cnt) * 5);
-         Serial.print(" ");
+         // Serial.print(EEPROM.read(cnt) * 5);
+         // Serial.print(" ");
          cnt++;
       }
    }
@@ -811,6 +826,22 @@ void setup() {
    esc.writeMicroseconds(MIN_SIGNAL);
    delay(2000);
    dribler(0);
+   // while(1) {
+   //    // Serial.println(getVah(0x07));
+   //    // 0x07を角度によって強さの閾値を変えて読む
+   //    // if (dis < 20) Serial.println("遠い");
+   //    // else Serial.println("近い");
+   //    Serial.println(IRval(1));
+   //    delay(10);
+
+
+   //    // int ball = IRval(1);
+   //    // int str_th = 0;
+   //    // if(ball <= 45)
+   //    // if(ball >= 315) {
+   //    //    str_th = 20;
+   //    // }
+   // }
 }
 
 int status = 0;
