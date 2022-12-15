@@ -85,8 +85,8 @@ int dirIR = 0;
 
 void dribler(int mode) {
    if(mode == 0) volume = 1000;
-   if(mode == 1) volume = 1200;
-   if(mode == 2) volume = 1500;
+   if(mode == 1) volume = 1350;
+   if(mode == 2) volume = 1600;
    esc.writeMicroseconds(volume);
 }
 
@@ -362,10 +362,10 @@ bool isOnLine(int i, int j) {
 }
 
 bool isCatch() {
-  int th = 100;
+  int th = 30;
   int val = analogRead(A12);
   if(val < th) {
-      return false;
+      return true;
   }
   else {
    return false;
@@ -502,9 +502,9 @@ void motorStop() {
 }
 
 void turnFront() {
-   int diff = 10;
+   int diff = 45;
    int S = 50;
-   int MAX = 170;
+   int MAX = 130;
    int GY = GyroGet();
    while(GY >= diff || GY < (360 - diff)) {
    if(GY >= diff && GY < 90) {
@@ -579,6 +579,47 @@ void motor(int angle) {
    motor4.setSpeed(motor_power[3] + addP);
 }
 
+void DribleMotor(int angle) {
+   double motor_power[4];
+   double max_power;
+   motor_power[0] = cos((45 - angle) / 180.0 * PI);
+   motor_power[1] = cos((135 - angle) / 180.0 * PI);
+   motor_power[2] = cos((-45 - angle) / 180.0 * PI);
+   motor_power[3] = cos((-135 - angle) / 180.0 * PI);
+   for (int i = 0; i < 4; i++) {
+      if (abs(motor_power[i]) > max_power) {
+         max_power = abs(motor_power[i]);
+      }
+   }
+   for (int i = 0; i < 4; i++) {
+      motor_power[i] = speed * motor_power[i] / max_power;
+      for (int j = 9; j > 0; j--) {
+         ave_motor_power[i][j] = ave_motor_power[i][j - 1];
+      }
+      ave_motor_power[i][0] = motor_power[i];
+      ave_mpPlus = 0;
+      for (int k = 0; k < 10; k++) {
+         ave_mpPlus = ave_mpPlus + ave_motor_power[i][k];
+      }
+      motor_power[i] = ave_mpPlus / 10;
+   }
+   int gy = GyroGet();
+   int addP = 0;
+   if(gy > 5 && gy < 180) {
+      addP = 0;
+   }
+   else if (gy >= 180 && gy < 355) {
+      addP = -50;
+   }
+   if(gy > 90 && gy < 270) {
+      turnFront();
+   }
+   motor1.setSpeed(-motor_power[1] + addP);
+   motor2.setSpeed(motor_power[0] + addP);
+   motor3.setSpeed(motor_power[2] + addP);
+   motor4.setSpeed(motor_power[3] + addP);
+}
+
 void lightMotor(int angle) {
    double motor_power[4];
    double max_power;
@@ -607,7 +648,7 @@ void kick() {
    delay(100);
 }
 
-void writeEEPROM() {  
+void writeEEPROM() {
   int cnt = 0;
   for(int i = 0; i < 4; i++) {
     for(int j = 0; j < 2; j++) {
@@ -770,18 +811,27 @@ void followBall2() {
 
 void followBall3() {
    int ball = IRval(1);
-   if(ball <= 10 || ball == 355) {
+   if(ball <= 5 || ball >= 350) {
+      dribler(1);
+      motor(0);
       while(isCatch()) {
-         motor(0);
-         if(!isCatch()) break;
+         // 課題：右に行く
+         dribler(2);
+         DribleMotor(0);
+         if(!isCatch()) {
+            dribler(0);
+            break;
+         }
       }
    }
    else {
+      // to do θの定数
+      dribler(0);
       if(ball <= 180) {
-         motor(ball+50);
+         motor(ball+40);
       }
       else {
-         motor(ball-50);
+         motor(ball-40);
       }
    }
    
@@ -796,6 +846,7 @@ void setup() {
    pinMode(34, INPUT);
    pinMode(35, INPUT);
    pinMode(10, OUTPUT);
+   pinMode(32, INPUT);
    Serial.begin(19200);
    Wire.begin();
    Serial7.begin(19200);
@@ -826,21 +877,8 @@ void setup() {
    esc.writeMicroseconds(MIN_SIGNAL);
    delay(2000);
    dribler(0);
-   // while(1) {
-   //    // Serial.println(getVah(0x07));
-   //    // 0x07を角度によって強さの閾値を変えて読む
-   //    // if (dis < 20) Serial.println("遠い");
-   //    // else Serial.println("近い");
+   // while(1){
    //    Serial.println(IRval(1));
-   //    delay(10);
-
-
-   //    // int ball = IRval(1);
-   //    // int str_th = 0;
-   //    // if(ball <= 45)
-   //    // if(ball >= 315) {
-   //    //    str_th = 20;
-   //    // }
    // }
 }
 
@@ -866,7 +904,7 @@ void loop() {
             display.clearDisplay();
             display.display();
             while(!CenterPush) {
-               followBall2();
+               followBall3();
             }
             dribler(0);
             motorStop();
