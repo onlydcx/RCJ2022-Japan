@@ -58,7 +58,7 @@ Servo esc;
 CytronMD motor1(PWM_DIR, 5, 4);
 CytronMD motor2(PWM_DIR, 3, 2);
 CytronMD motor3(PWM_DIR, 9, 8);
-CytronMD motor4(PWM_DIR, 7, 6);
+CytronMD motor4(PWM_DIR, 12, 6);
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
@@ -84,9 +84,10 @@ int prevIR, dirPlus, cnt;
 int dirIR = 0;
 
 void dribler(int mode) {
-   if(mode == 0) volume = 1000;
+   if(mode == 0) volume = 1200;
    if(mode == 1) volume = 1350;
    if(mode == 2) volume = 1600;
+   else volume = 1000;
    esc.writeMicroseconds(volume);
 }
 
@@ -362,7 +363,7 @@ bool isOnLine(int i, int j) {
 }
 
 bool isCatch() {
-  int th = 30;
+  int th = 70;
   int val = analogRead(A12);
   if(val < th) {
       return true;
@@ -519,13 +520,13 @@ void turnFront() {
       motor3.setSpeed(-MAX);
       motor4.setSpeed(MAX);
    }
-   else if(GY >= 180 && GY < 275) {
+   else if(GY >= 180 && GY < 270) {
       motor1.setSpeed(-MAX);
       motor2.setSpeed(-MAX);
       motor3.setSpeed(MAX);
       motor4.setSpeed(-MAX);
    }
-   else if(GY >= 275 && GY < 360 - diff) {
+   else if(GY >= 270 && GY < 315) {
       motor1.setSpeed(-S);
       motor2.setSpeed(-S);
       motor3.setSpeed(S);
@@ -813,7 +814,7 @@ void followBall3() {
    int ball = IRval(1);
    if(ball <= 5 || ball >= 350) {
       dribler(1);
-      motor(0);
+      motor(ball);
       while(isCatch()) {
          // 課題：右に行く
          dribler(2);
@@ -877,9 +878,6 @@ void setup() {
    esc.writeMicroseconds(MIN_SIGNAL);
    delay(2000);
    dribler(0);
-   // while(1){
-   //    Serial.println(IRval(1));
-   // }
 }
 
 int status = 0;
@@ -906,7 +904,7 @@ void loop() {
             while(!CenterPush) {
                followBall3();
             }
-            dribler(0);
+            dribler(5);
             motorStop();
             break;
          case 1:
