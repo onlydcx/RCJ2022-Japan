@@ -943,123 +943,123 @@ void loop() {
    while(digitalRead(MOTOR_SWITCH)) {
       followBall3();
       if(!digitalRead(MOTOR_SWITCH)) {
-         dribler(1000);
          motorStop();
+         dribler(0);
          break;
       }
    }
-   if (LeftPush) {
-      isPushed = true;
-      if ((status <= mode_len - 1) && (status >= 1)) {
-         status--;
-      }
-   }
-   if (RightPush) {
-      isPushed = true;
-      if ((status <= mode_len - 2) && (status >= 0)) {
-         status++;
-      }
-   }
-   if (CenterPush) {
-      switch (status) {
-         case 0:
-            display.clearDisplay();
-            display.display();
-            while(!CenterPush) {
-               followBall3();
-            }
-            dribler(1000);
-            motorStop();
-            break;
-         case 1:
-            while (!CenterPush) {
-               printIR();
-            }
-            break;
-         case 2:
-            while (!CenterPush) {
-               printIMU();
-            }
-            break;
-         case 3:
-            while (!CenterPush) {
-               printKick();
-               if (digitalRead(31)) {
-                  kick();
-               }
-            }
-            break;
-         case 4:
-            if (isFirstSetSpeed) {
-               int char_len = ((String)speed).length();
-               int drawX = (display.width() / 2) - ((char_len / 2) * 11);
-               display.clearDisplay();
-               display.setTextSize(2);
-               display.setTextColor(SSD1306_WHITE);
-               display.setCursor(drawX, 7);
-               display.println(speed);
-               display.drawLine(0, 32, 128, 32, SSD1306_WHITE);
-               if (atoi((speed_mode[0]).c_str()) < speed) {
-                  display.drawTriangle(90, 45, 90, 55, 100, 50, SSD1306_WHITE);
-               }
-               if (atoi((speed_mode[speed_mode_len - 1]).c_str()) > speed) {
-                  display.drawTriangle(34, 45, 34, 55, 24, 50, SSD1306_WHITE);
-               }
-               for (int i = 0; i < speed_mode_len; i++) {
-                  if (atoi((speed_mode[i]).c_str()) == speed) {
-                     speed_status = i + 1;
-                     break;
-                  }
-                  if (atoi((speed_mode[i]).c_str()) > speed) {
-                     speed_status = i;
-                     break;
-                  }
-               }
-               speed = atoi((speed_mode[speed_status]).c_str());
-               display.display();
-               isFirstSetSpeed = !isFirstSetSpeed;
-            }
-            while (!CenterPush) {
-               changeSpeed();
-            }
-            break;
-         case 5:
-            while (!CenterPush) {
-               RST_Gy();
-            }
-            break;
-         case 6:
-            while (!CenterPush) {
-               printLine();
-            }
-            break;
-         case 7:
-            while (!CenterPush) {
-               LineThUpdate();
-            }
-            break;
-         case 8:
-            writeEEPROM();
-            break;
-         default:
-            break;
-      }
-   }
-   if (isPushed) {
-      int char_len = mode[status].length();
-      int drawX = (display.width() / 2) - ((char_len / 2) * 12);
-      display.clearDisplay();
-      display.setTextSize(2);
-      display.setTextColor(SSD1306_WHITE);
-      display.setCursor(drawX, 7);
-      display.println(mode[status]);
-      display.drawLine(0, 32, 128, 32, SSD1306_WHITE);
-      if (status <= mode_len - 2) {
-         display.drawTriangle(90, 45, 90, 55, 100, 50, SSD1306_WHITE);
-      }
-      if (status >= 1) {
-         display.drawTriangle(34, 45, 34, 55, 24, 50, SSD1306_WHITE);
-      }
-      display.display();
-   }
+   // if (LeftPush) {
+   //    isPushed = true;
+   //    if ((status <= mode_len - 1) && (status >= 1)) {
+   //       status--;
+   //    }
+   // }
+   // if (RightPush) {
+   //    isPushed = true;
+   //    if ((status <= mode_len - 2) && (status >= 0)) {
+   //       status++;
+   //    }
+   // }
+   // if (CenterPush) {
+   //    switch (status) {
+   //       case 0:
+   //          display.clearDisplay();
+   //          display.display();
+   //          while(!CenterPush) {
+   //             followBall3();
+   //          }
+   //          dribler(1000);
+   //          motorStop();
+   //          break;
+   //       case 1:
+   //          while (!CenterPush) {
+   //             printIR();
+   //          }
+   //          break;
+   //       case 2:
+   //          while (!CenterPush) {
+   //             printIMU();
+   //          }
+   //          break;
+   //       case 3:
+   //          while (!CenterPush) {
+   //             printKick();
+   //             if (digitalRead(31)) {
+   //                kick();
+   //             }
+   //          }
+   //          break;
+   //       case 4:
+   //          if (isFirstSetSpeed) {
+   //             int char_len = ((String)speed).length();
+   //             int drawX = (display.width() / 2) - ((char_len / 2) * 11);
+   //             display.clearDisplay();
+   //             display.setTextSize(2);
+   //             display.setTextColor(SSD1306_WHITE);
+   //             display.setCursor(drawX, 7);
+   //             display.println(speed);
+   //             display.drawLine(0, 32, 128, 32, SSD1306_WHITE);
+   //             if (atoi((speed_mode[0]).c_str()) < speed) {
+   //                display.drawTriangle(90, 45, 90, 55, 100, 50, SSD1306_WHITE);
+   //             }
+   //             if (atoi((speed_mode[speed_mode_len - 1]).c_str()) > speed) {
+   //                display.drawTriangle(34, 45, 34, 55, 24, 50, SSD1306_WHITE);
+   //             }
+   //             for (int i = 0; i < speed_mode_len; i++) {
+   //                if (atoi((speed_mode[i]).c_str()) == speed) {
+   //                   speed_status = i + 1;
+   //                   break;
+   //                }
+   //                if (atoi((speed_mode[i]).c_str()) > speed) {
+   //                   speed_status = i;
+   //                   break;
+   //                }
+   //             }
+   //             speed = atoi((speed_mode[speed_status]).c_str());
+   //             display.display();
+   //             isFirstSetSpeed = !isFirstSetSpeed;
+   //          }
+   //          while (!CenterPush) {
+   //             changeSpeed();
+   //          }
+   //          break;
+   //       case 5:
+   //          while (!CenterPush) {
+   //             RST_Gy();
+   //          }
+   //          break;
+   //       case 6:
+   //          while (!CenterPush) {
+   //             printLine();
+   //          }
+   //          break;
+   //       case 7:
+   //          while (!CenterPush) {
+   //             LineThUpdate();
+   //          }
+   //          break;
+   //       case 8:
+   //          writeEEPROM();
+   //          break;
+   //       default:
+   //          break;
+   //    }
+   // }
+   // if (isPushed) {
+   //    int char_len = mode[status].length();
+   //    int drawX = (display.width() / 2) - ((char_len / 2) * 12);
+   //    display.clearDisplay();
+   //    display.setTextSize(2);
+   //    display.setTextColor(SSD1306_WHITE);
+   //    display.setCursor(drawX, 7);
+   //    display.println(mode[status]);
+   //    display.drawLine(0, 32, 128, 32, SSD1306_WHITE);
+   //    if (status <= mode_len - 2) {
+   //       display.drawTriangle(90, 45, 90, 55, 100, 50, SSD1306_WHITE);
+   //    }
+   //    if (status >= 1) {
+   //       display.drawTriangle(34, 45, 34, 55, 24, 50, SSD1306_WHITE);
+   //    }
+   //    display.display();
+   // }
 }
