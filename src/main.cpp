@@ -77,7 +77,7 @@ VectorFloat gravity;
 float ypr[3];
 int Gyro_X, Gyro_Y, Gyro_Z, Accel_Z;
 
-int speed = 180;
+int speed = 220;
 bool isFirstSetSpeed = true;
 
 int ave_motor_power[4][10] = {0};
@@ -635,10 +635,21 @@ void lightMotor(int angle) {
    for (int i = 0; i < 4; i++) {
       motor_power[i] = speed * motor_power[i] / max_power;
    }
-   motor1.setSpeed(-motor_power[1]);
-   motor2.setSpeed(motor_power[0]);
-   motor3.setSpeed(motor_power[2]);
-   motor4.setSpeed(motor_power[3]);
+   int gy = GyroGet();
+   int addP = 0;
+   if(gy > 5 && gy < 180) {
+      addP = 0;
+   }
+   else if (gy >= 180 && gy < 355) {
+      addP = -50;
+   }
+   if(gy > 90 && gy < 270) {
+      turnFront();
+   }
+   motor1.setSpeed(-motor_power[1] + addP);
+   motor2.setSpeed(motor_power[0] + addP);
+   motor3.setSpeed(motor_power[2] + addP);
+   motor4.setSpeed(motor_power[3] + addP);
 }
 
 void kick() {
