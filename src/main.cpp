@@ -7,9 +7,12 @@
 #include <EEPROM.h>
 #include <Servo.h>
 
-#define MAX_SIGNAL 2000
+#define MAX_SIGNAL 1600
 #define MIN_SIGNAL 1000
 #define ESC_PIN 13
+
+#define MOTOR_SWITCH 32
+
 int volume = 0;
 char message[50];
 
@@ -28,10 +31,10 @@ Servo esc;
 
 #define w display.width()
 #define h display.height()
-
-#define LeftPush isPush(30)
+// いれかえた！！！！！！！！
+#define LeftPush isPush(31)
 #define CenterPush isPush(25)
-#define OnOffPush isPush(31)
+#define OnOffPush isPush(30)
 #define RightPush isPush(27)
 #define AnyPush (LeftPush || CenterPush || OnOffPush || RightPush)
 
@@ -83,12 +86,8 @@ int ave_mpPlus = 0;
 int prevIR, dirPlus, cnt;
 int dirIR = 0;
 
-void dribler(int mode) {
-   if(mode == 0) volume = 1200;
-   if(mode == 1) volume = 1350;
-   if(mode == 2) volume = 1600;
-   else volume = 1000;
-   esc.writeMicroseconds(volume);
+void dribler(int pulse) {
+   esc.writeMicroseconds(pulse);
 }
 
 int getVah(int f) {
@@ -336,8 +335,8 @@ void LineThUpdate() {
       }
       for(int i = 0; i < 4; i++) {
          for(int j = 0; j < 2; j++) {
-            int border = 2;
-            int add = -50;
+            int border = 3;
+            int add = 50;
             int diff = abs(LineMax[i][j] - LineMin[i][j]);
             int threshold = LineMax[i][j] - (diff / border);
             thresholds[i][j] = threshold + add;
@@ -697,7 +696,7 @@ void followBall2() {
 //        } 
 //     }
 //  }
-//
+
 //  if(isOnRight) {
 //     lightMotor(270);
 //     delay(dltime);
@@ -710,7 +709,7 @@ void followBall2() {
 //        } 
 //     }
 //  }
-//
+
 //  if(isOnBack) {
 //     lightMotor(0);
 //     delay(dltime);
@@ -723,7 +722,7 @@ void followBall2() {
 //        } 
 //     }
 //  }
-//
+
 //  if(isOnLeft) {
 //     lightMotor(90);
 //     delay(dltime);
@@ -812,22 +811,78 @@ void followBall2() {
 
 void followBall3() {
    int ball = IRval(1);
+int IR = ball;
+
+//    int dltime = 10;
+
+//     if(isOnFront) {
+//     lightMotor(180);
+//     delay(dltime);
+//     int time = millis(); 
+//     while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
+//        motorStop();
+//        IR = getdirIR(); 
+//        if(IR >= 90 && IR <= 270) {
+//           break;
+//        } 
+//     }
+//  }
+
+//  if(isOnRight) {
+//     lightMotor(270);
+//     delay(dltime);
+//     int time = millis(); 
+//     while(((millis() - time) < 3000) && (IR <= 180 && IR >= 0)) {
+//        motorStop();
+//        IR = getdirIR(); 
+//        if(IR >= 180) {
+//           break;
+//        } 
+//     }
+//  }
+
+//  if(isOnBack) {
+//     lightMotor(0);
+//     delay(dltime);
+//     int time = millis(); 
+//     while(((millis() - time) < 3000) && (IR <= 270 && IR >= 90)) {
+//        motorStop();
+//        IR = getdirIR(); 
+//        if(IR >= 270 || IR <= 90) {
+//           break;
+//        } 
+//     }
+//  }
+
+//  if(isOnLeft) {
+//     lightMotor(90);
+//     delay(dltime);
+//     int time = millis(); 
+//     while(((millis() - time) < 3000) && (IR >= 180)) {
+//        motorStop();
+//        IR = getdirIR(); 
+//        if(IR >= 0 && IR <= 180) {
+//           break;
+//        } 
+//     }
+//  }
+
    if(ball <= 5 || ball >= 350) {
-      dribler(1);
+      dribler(1300);
       motor(ball);
       while(isCatch()) {
          // 課題：右に行く
-         dribler(2);
+         dribler(1600);
          DribleMotor(0);
          if(!isCatch()) {
-            dribler(0);
+            dribler(1000);
             break;
          }
       }
    }
    else {
       // to do θの定数
-      dribler(0);
+      dribler(1000);
       if(ball <= 180) {
          motor(ball+40);
       }
@@ -842,6 +897,7 @@ String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "RST Gyro","LineCheck"
 int mode_len = SIZE_OF_ARRAY(mode);
 
 void setup() {
+   pinMode(MOTOR_SWITCH,INPUT);
    pinMode(27, INPUT);
    pinMode(25, INPUT);
    pinMode(34, INPUT);
@@ -877,13 +933,21 @@ void setup() {
    delay(2000);
    esc.writeMicroseconds(MIN_SIGNAL);
    delay(2000);
-   dribler(0);
+   dribler(1000);
 }
 
 int status = 0;
 bool isPushed = false;
 
 void loop() {
+   while(digitalRead(MOTOR_SWITCH)) {
+      followBall3();
+      if(!digitalRead(MOTOR_SWITCH)) {
+         dribler(1000);
+         motorStop();
+         break;
+      }
+   }
    if (LeftPush) {
       isPushed = true;
       if ((status <= mode_len - 1) && (status >= 1)) {
@@ -904,7 +968,7 @@ void loop() {
             while(!CenterPush) {
                followBall3();
             }
-            dribler(5);
+            dribler(1000);
             motorStop();
             break;
          case 1:
