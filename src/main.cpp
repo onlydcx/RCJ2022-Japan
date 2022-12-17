@@ -77,7 +77,7 @@ VectorFloat gravity;
 float ypr[3];
 int Gyro_X, Gyro_Y, Gyro_Z, Accel_Z;
 
-int speed = 150;
+int speed = 180;
 bool isFirstSetSpeed = true;
 
 int ave_motor_power[4][10] = {0};
@@ -295,10 +295,10 @@ int analogPins[4][2] = {
 };
 
 int thresholds[4][2] = {
-   {1023, 1023},
-   {1023, 1023},
-   {1023, 1023},
-   {1023, 1023}
+   {800, 800},
+   {800, 800},
+   {800, 800},
+   {800, 800}
 };
 
 int LineMin[4][2] = {1023};
@@ -362,7 +362,7 @@ bool isOnLine(int i, int j) {
 }
 
 bool isCatch() {
-  int th = 70;
+  int th = 50;
   int val = analogRead(A12);
   if(val < th) {
       return true;
@@ -811,85 +811,92 @@ void followBall2() {
 
 void followBall3() {
    int ball = IRval(1);
-int IR = ball;
+   int IR = ball;
 
-//    int dltime = 10;
+   int dltime = 200;
 
-//     if(isOnFront) {
-//     lightMotor(180);
-//     delay(dltime);
-//     int time = millis(); 
-//     while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
-//        motorStop();
-//        IR = getdirIR(); 
-//        if(IR >= 90 && IR <= 270) {
-//           break;
-//        } 
-//     }
-//  }
-
-//  if(isOnRight) {
-//     lightMotor(270);
-//     delay(dltime);
-//     int time = millis(); 
-//     while(((millis() - time) < 3000) && (IR <= 180 && IR >= 0)) {
-//        motorStop();
-//        IR = getdirIR(); 
-//        if(IR >= 180) {
-//           break;
-//        } 
-//     }
-//  }
-
-//  if(isOnBack) {
-//     lightMotor(0);
-//     delay(dltime);
-//     int time = millis(); 
-//     while(((millis() - time) < 3000) && (IR <= 270 && IR >= 90)) {
-//        motorStop();
-//        IR = getdirIR(); 
-//        if(IR >= 270 || IR <= 90) {
-//           break;
-//        } 
-//     }
-//  }
-
-//  if(isOnLeft) {
-//     lightMotor(90);
-//     delay(dltime);
-//     int time = millis(); 
-//     while(((millis() - time) < 3000) && (IR >= 180)) {
-//        motorStop();
-//        IR = getdirIR(); 
-//        if(IR >= 0 && IR <= 180) {
-//           break;
-//        } 
-//     }
-//  }
-
-   if(ball <= 5 || ball >= 350) {
-      dribler(1300);
-      motor(ball);
-      while(isCatch()) {
-         // 課題：右に行く
-         dribler(1600);
-         DribleMotor(0);
-         if(!isCatch()) {
-            dribler(1000);
-            break;
+   if(isOnAny) {
+      if(isOnFront) {
+         motorStop();
+         lightMotor(180);
+         delay(dltime);
+         int time = millis(); 
+         while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
+            motorStop();
+            IR = getdirIR(); 
+            if(IR >= 90 && IR <= 270) {
+               break;
+            } 
+         }
+      }
+      if(isOnRight) {
+         motorStop();
+         lightMotor(270);
+         delay(dltime);
+         int time = millis(); 
+         while(((millis() - time) < 3000) && (IR <= 180 && IR >= 0)) {
+            motorStop();
+            IR = getdirIR(); 
+            if(IR >= 180) {
+               break;
+            } 
+         }
+      }
+      if(isOnBack) {
+         motorStop();
+         lightMotor(0);
+         delay(dltime);
+         int time = millis(); 
+         while(((millis() - time) < 3000) && (IR <= 270 && IR >= 90)) {
+            motorStop();
+            IR = getdirIR(); 
+            if(IR >= 270 || IR <= 90) {
+               break;
+            } 
+         }
+      }
+      if(isOnLeft) {
+         motorStop();
+         delay(1000);
+         lightMotor(90);
+         delay(dltime);
+         int time = millis(); 
+         while(((millis() - time) < 3000) && (IR >= 180)) {
+            motorStop();
+            IR = getdirIR(); 
+            if(IR >= 0 && IR <= 180) {
+               break;
+            } 
          }
       }
    }
    else {
-      // to do θの定数
-      dribler(1000);
-      if(ball <= 180) {
-         motor(ball+40);
+      if(ball <= 5 || ball >= 350) {
+         // dribler(1300);
+         motor(ball);
+         while(isCatch()) {
+            // 課題：右に行く
+            // dribler(1600);
+            motor(0);
+            if(!isCatch()) {
+               // dribler(1000);
+               break;
+            }
+         }
       }
       else {
-         motor(ball-40);
+         // to do θの定数
+         // dribler(1000);
+         if(ball <= 180) {
+            motor(ball+40);
+         }
+         else {
+            motor(ball-40);
+         }
       }
    }
+
+
    
 }
 
@@ -911,29 +918,32 @@ void setup() {
    selectGyro(3);
    Gryo_init();
    int cnt = 0;
-   for(int i = 0; i < 4; i++) {
-      for(int j = 0; j < 2; j++) {
-         thresholds[i][j] = EEPROM.read(cnt) * 5;
-         // Serial.print(EEPROM.read(cnt) * 5);
-         // Serial.print(" ");
-         cnt++;
-      }
-   }
-   Serial.println("");
-   int len = 8;
-   int drawX = (display.width() / 2) - ((len / 2) * 12);
-   display.clearDisplay();
-   display.setTextSize(2);
-   display.setTextColor(SSD1306_WHITE);
-   display.setCursor(drawX, 10);
-   display.println("Main.cpp");
+   // while(1) {
+   //    motor(180);
+   // }
+   // for(int i = 0; i < 4; i++) {
+   //    for(int j = 0; j < 2; j++) {
+   //       thresholds[i][j] = EEPROM.read(cnt) * 5;
+   //       // Serial.print(EEPROM.read(cnt) * 5);
+   //       // Serial.print(" ");
+   //       cnt++;
+   //    }
+   // }
+   // Serial.println("");
+   // int len = 8;
+   // int drawX = (display.width() / 2) - ((len / 2) * 12);
+   // display.clearDisplay();
+   // display.setTextSize(2);
+   // display.setTextColor(SSD1306_WHITE);
+   // display.setCursor(drawX, 10);
+   // display.println("Main.cpp");
 
-   esc.attach(ESC_PIN);
-   esc.writeMicroseconds(MAX_SIGNAL);
-   delay(2000);
-   esc.writeMicroseconds(MIN_SIGNAL);
-   delay(2000);
-   dribler(1000);
+   // esc.attach(ESC_PIN);
+   // esc.writeMicroseconds(MAX_SIGNAL);
+   // delay(2000);
+   // esc.writeMicroseconds(MIN_SIGNAL);
+   // delay(2000);
+   // dribler(1000);
 }
 
 int status = 0;
@@ -943,8 +953,13 @@ void loop() {
    while(digitalRead(MOTOR_SWITCH)) {
       followBall3();
       if(!digitalRead(MOTOR_SWITCH)) {
+         // motorStop();
+         // dribler(1000); // モーター止まらん ドリブラー止まる
+         
+         // motorStop();
+         // dribler(0); //　モーター止まる ドリブラーバグる
          motorStop();
-         dribler(0);
+         // dribler(0);
          break;
       }
    }
