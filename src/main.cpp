@@ -77,7 +77,7 @@ VectorFloat gravity;
 float ypr[3];
 int Gyro_X, Gyro_Y, Gyro_Z, Accel_Z;
 
-int speed = 220;
+int speed = 200;
 bool isFirstSetSpeed = true;
 
 int ave_motor_power[4][10] = {0};
@@ -605,15 +605,16 @@ void DribleMotor(int angle) {
    }
    int gy = GyroGet();
    int addP = 0;
+   if(gy > 45 && gy < 315) {
+      turnFront();
+   }
    if(gy > 5 && gy < 180) {
       addP = 0;
    }
    else if (gy >= 180 && gy < 355) {
       addP = -50;
    }
-   if(gy > 90 && gy < 270) {
-      turnFront();
-   }
+
    motor1.setSpeed(-motor_power[1] + addP);
    motor2.setSpeed(motor_power[0] + addP);
    motor3.setSpeed(motor_power[2] + addP);
@@ -637,15 +638,16 @@ void lightMotor(int angle) {
    }
    int gy = GyroGet();
    int addP = 0;
+   if(gy > 30 && gy < 330) {
+      turnFront();
+   }
    if(gy > 5 && gy < 180) {
       addP = 0;
    }
    else if (gy >= 180 && gy < 355) {
       addP = -50;
    }
-   if(gy > 90 && gy < 270) {
-      turnFront();
-   }
+
    motor1.setSpeed(-motor_power[1] + addP);
    motor2.setSpeed(motor_power[0] + addP);
    motor3.setSpeed(motor_power[2] + addP);
@@ -677,132 +679,263 @@ void followBall2() {
   int IR = getdirIR();
   int dltime = 150;
 
-   while(isCatch() && (IR == 0 || IR == 5 || IR == 355)) {
-      dribler(2);
-      // lightMotor(0);
-      motor(0);
-   // if(isOnFront) {
-   //    lightMotor(180);
-   //    delay(dltime);
-   //    int time = millis(); 
-   //    while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
-   //       motorStop();
-   //       IR = getdirIR(); 
-   //       if(IR >= 90 && IR <= 270) {
-   //          break;
-   //       } 
-   //    }
-   // }
-  }
-
-//  if(isOnFront) {
-//     lightMotor(180);
-//     delay(dltime);
-//     int time = millis(); 
-//     while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
-//        motorStop();
-//        IR = getdirIR(); 
-//        if(IR >= 90 && IR <= 270) {
-//           break;
-//        } 
-//     }
-//  }
-
-//  if(isOnRight) {
-//     lightMotor(270);
-//     delay(dltime);
-//     int time = millis(); 
-//     while(((millis() - time) < 3000) && (IR <= 180 && IR >= 0)) {
-//        motorStop();
-//        IR = getdirIR(); 
-//        if(IR >= 180) {
-//           break;
-//        } 
-//     }
-//  }
-
-//  if(isOnBack) {
-//     lightMotor(0);
-//     delay(dltime);
-//     int time = millis(); 
-//     while(((millis() - time) < 3000) && (IR <= 270 && IR >= 90)) {
-//        motorStop();
-//        IR = getdirIR(); 
-//        if(IR >= 270 || IR <= 90) {
-//           break;
-//        } 
-//     }
-//  }
-
-//  if(isOnLeft) {
-//     lightMotor(90);
-//     delay(dltime);
-//     int time = millis(); 
-//     while(((millis() - time) < 3000) && (IR >= 180)) {
-//        motorStop();
-//        IR = getdirIR(); 
-//        if(IR >= 0 && IR <= 180) {
-//           break;
-//        } 
-//     }
-//  }
-
-   dribler(1);
-
-   IR = getdirIR();
-   dirIR = IRval(1);
-
-   if (abs(prevIR - dirIR) > 110) {
-      cnt++;
-      if (cnt == 5) {
-         cnt = 0;
-         prevIR = dirIR;
-      }
-      else {
-         dirIR = prevIR;
-      }
-   }
-   else {
-      cnt = 0;
-      prevIR = dirIR;
-   }
-   if (dirIR <= 35) {
-      dirPlus = dirIR ;
-   }
-   else if (dirIR >= 325) {
-      dirPlus = (360 - dirIR);
-   } 
-   else {
-      dirPlus = 50;
-   }
-
-   dirPlus = dirPlus + 10;
-
-   if (getVah(0x05) <= 50 && getVah(0x07) <= 10) {
-      motor(dirIR);
-   }
-   else if (getVah(0x05) >= 75 && getVah(0x07) >= 15) {
-      if (dirIR <= 5 || dirIR >= 355) {
-         motor(0);
-      }
-      else {
-         if (dirIR <= 180) {
-            motor(dirIR + dirPlus * 2);
-         }
-         else {
-            motor(dirIR - dirPlus * 2);
+   if(isOnAny) {
+      
+      if(isOnFront) {
+         turnFront();
+         lightMotor(180);
+         delay(dltime*2);
+         int time = millis(); 
+         while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
+            motorStop();
+            IR = getdirIR(); 
+            if((IR >= 90 && IR <= 270) || digitalRead(MOTOR_SWITCH)) {
+               break;
+            } 
          }
       }
-   } 
+      if(isOnRight) {
+         turnFront();
+         lightMotor(270);
+         delay(dltime);
+         int time = millis(); 
+         while(((millis() - time) < 3000) && (IR <= 180 && IR >= 0)) {
+            motorStop();
+            IR = getdirIR(); 
+            if((IR >= 180) || digitalRead(MOTOR_SWITCH)) {
+               break;
+            } 
+         }
+      }
+      if(isOnBack) {
+         turnFront();
+         lightMotor(0);
+         delay(dltime);
+         int time = millis(); 
+         while(((millis() - time) < 3000) && (IR <= 270 && IR >= 90)) {
+            motorStop();
+            IR = getdirIR(); 
+            if((IR >= 270 || IR <= 90) || digitalRead(MOTOR_SWITCH)) {
+               break;
+            } 
+         }
+      }
+      if(isOnLeft) {
+         turnFront();
+         lightMotor(90);
+         delay(dltime);
+         int time = millis(); 
+         while(((millis() - time) < 3000) && (IR >= 180)) {
+            motorStop();
+            IR = getdirIR(); 
+            if((IR >= 0 && IR <= 180) || digitalRead(MOTOR_SWITCH)) {
+               break;
+            }
+         }
+      }
+   }
    else {
-      if (dirIR <= 180) {
-         motor(dirIR + dirPlus);
+      //ボール追いかけ
+      IR = getdirIR();
+ //     dirIR = IRval(1);
+
+      // if (abs(prevIR - dirIR) > 110) {
+      //    cnt++;
+      //    if (cnt == 5) {
+      //       cnt = 0;
+      //       prevIR = dirIR;
+      //    }
+      //    else {
+      //       dirIR = prevIR;
+      //    }
+      // }
+      // else {
+      //    cnt = 0;
+      //    prevIR = dirIR;
+      // }
+      // Serial.println(IRval(1));
+      if (IR <= 35) {
+         dirPlus = IR ;
+      }
+      else if (IR >= 325) {
+         dirPlus = (360 - IR);
       } 
       else {
-         motor(dirIR - dirPlus);
+         dirPlus = 50;
+      }
+      dirPlus = dirPlus *3/4;
+
+      
+
+      if (getVah(0x05) <= 60 && getVah(0x07) <= 15) {
+         motor(IR);
+      }
+      else if (getVah(0x05) >= 75 && getVah(0x07) >= 15) {
+         if (IR <= 5 || IR >= 355) {
+            while(isCatch() && !isOnFront) {
+               lightMotor(0);
+               if(isOnFront) {
+                        lightMotor(180);
+                        delay(dltime*2);
+                        int time = millis(); 
+                        while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
+                           motorStop();
+                           IR = getdirIR(); 
+                           if((IR >= 90 && IR <= 270) || digitalRead(MOTOR_SWITCH)) {
+                              break;
+                           } 
+                        }
+                        break;
+               }
+               if(!isCatch()) break;
+            }
+            motor(IR);
+         }
+         else {
+            if (dirIR <= 180) {
+               motor(IR + dirPlus * 2);
+            }
+            else {
+               motor(IR - dirPlus * 2);
+            }
+         }
+      } 
+      else {
+         if (dirIR <= 180) {
+            motor(IR + dirPlus);
+         } 
+         else {
+            motor(IR - dirPlus);
+         }
       }
    }
-}
+
+// //    while(isCatch() && (IR == 0 || IR == 5 || IR == 355)) {
+// //       dribler(2);
+// //       // lightMotor(0);
+// //       motor(0);
+// //    // if(isOnFront) {
+// //    //    lightMotor(180);
+// //    //    delay(dltime);
+// //    //    int time = millis(); 
+// //    //    while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
+// //    //       motorStop();
+// //    //       IR = getdirIR(); 
+// //    //       if(IR >= 90 && IR <= 270) {
+// //    //          break;
+// //    //       } 
+// //    //    }
+// //    // }
+// //   }
+
+// //  if(isOnFront) {
+// //     lightMotor(180);
+// //     delay(dltime);
+// //     int time = millis(); 
+// //     while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
+// //        motorStop();
+// //        IR = getdirIR(); 
+// //        if(IR >= 90 && IR <= 270) {
+// //           break;
+// //        } 
+// //     }
+// //  }
+
+// //  if(isOnRight) {
+// //     lightMotor(270);
+// //     delay(dltime);
+// //     int time = millis(); 
+// //     while(((millis() - time) < 3000) && (IR <= 180 && IR >= 0)) {
+// //        motorStop();
+// //        IR = getdirIR(); 
+// //        if(IR >= 180) {
+// //           break;
+// //        } 
+// //     }
+// //  }
+
+// //  if(isOnBack) {
+// //     lightMotor(0);
+// //     delay(dltime);
+// //     int time = millis(); 
+// //     while(((millis() - time) < 3000) && (IR <= 270 && IR >= 90)) {
+// //        motorStop();
+// //        IR = getdirIR(); 
+// //        if(IR >= 270 || IR <= 90) {
+// //           break;
+// //        } 
+// //     }
+// //  }
+
+// //  if(isOnLeft) {
+// //     lightMotor(90);
+// //     delay(dltime);
+// //     int time = millis(); 
+// //     while(((millis() - time) < 3000) && (IR >= 180)) {
+// //        motorStop();
+// //        IR = getdirIR(); 
+// //        if(IR >= 0 && IR <= 180) {
+// //           break;
+// //        } 
+// //     }
+// //  }
+
+//    dribler(1);
+
+//    IR = getdirIR();
+//    dirIR = IRval(1);
+
+//    if (abs(prevIR - dirIR) > 110) {
+//       cnt++;
+//       if (cnt == 5) {
+//          cnt = 0;
+//          prevIR = dirIR;
+//       }
+//       else {
+//          dirIR = prevIR;
+//       }
+//    }
+//    else {
+//       cnt = 0;
+//       prevIR = dirIR;
+//    }
+//    if (dirIR <= 35) {
+//       dirPlus = dirIR ;
+//    }
+//    else if (dirIR >= 325) {
+//       dirPlus = (360 - dirIR);
+//    } 
+//    else {
+//       dirPlus = 50;
+//    }
+
+//    dirPlus = dirPlus + 10;
+
+//    if (getVah(0x05) <= 50 && getVah(0x07) <= 10) {
+//       motor(dirIR);
+//    }
+//    else if (getVah(0x05) >= 75 && getVah(0x07) >= 15) {
+//       if (dirIR <= 5 || dirIR >= 355) {
+//          motor(0);
+//       }
+//       else {
+//          if (dirIR <= 180) {
+//             motor(dirIR + dirPlus * 2);
+//          }
+//          else {
+//             motor(dirIR - dirPlus * 2);
+//          }
+//       }
+//    } 
+//    else {
+//       if (dirIR <= 180) {
+//          motor(dirIR + dirPlus);
+//       } 
+//       else {
+//          motor(dirIR - dirPlus);
+//       }
+//    }
+// }
 
    // if(IR == 0 || IR == 5 || IR == 355) {
    //    motor(0);
@@ -819,6 +952,7 @@ void followBall2() {
    //    }
    // } 
 // }
+}
 
 void followBall3() {
    int ball = IRval(1);
@@ -828,56 +962,51 @@ void followBall3() {
 
    if(isOnAny) {
       if(isOnFront) {
-         motorStop();
          lightMotor(180);
-         delay(dltime);
+         delay(dltime*2);
          int time = millis(); 
          while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
             motorStop();
             IR = getdirIR(); 
-            if(IR >= 90 && IR <= 270) {
+            if((IR >= 90 && IR <= 270) || digitalRead(MOTOR_SWITCH)) {
                break;
             } 
          }
       }
       if(isOnRight) {
-         motorStop();
          lightMotor(270);
          delay(dltime);
          int time = millis(); 
          while(((millis() - time) < 3000) && (IR <= 180 && IR >= 0)) {
             motorStop();
             IR = getdirIR(); 
-            if(IR >= 180) {
+            if((IR >= 180) || digitalRead(MOTOR_SWITCH)) {
                break;
             } 
          }
       }
       if(isOnBack) {
-         motorStop();
          lightMotor(0);
          delay(dltime);
          int time = millis(); 
          while(((millis() - time) < 3000) && (IR <= 270 && IR >= 90)) {
             motorStop();
             IR = getdirIR(); 
-            if(IR >= 270 || IR <= 90) {
+            if((IR >= 270 || IR <= 90) || digitalRead(MOTOR_SWITCH)) {
                break;
             } 
          }
       }
       if(isOnLeft) {
-         motorStop();
-         delay(1000);
          lightMotor(90);
          delay(dltime);
          int time = millis(); 
          while(((millis() - time) < 3000) && (IR >= 180)) {
             motorStop();
             IR = getdirIR(); 
-            if(IR >= 0 && IR <= 180) {
+            if((IR >= 0 && IR <= 180) || digitalRead(MOTOR_SWITCH)) {
                break;
-            } 
+            }
          }
       }
    }
@@ -889,7 +1018,7 @@ void followBall3() {
             // 課題：右に行く
             // dribler(1600);
             motor(0);
-            if(!isCatch()) {
+            if(!isCatch() || digitalRead(MOTOR_SWITCH)) {
                // dribler(1000);
                break;
             }
@@ -907,8 +1036,6 @@ void followBall3() {
       }
    }
 
-
-   
 }
 
 String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "RST Gyro","LineCheck","LineThUp","EEPROM"};
@@ -928,10 +1055,7 @@ void setup() {
    display_init();
    selectGyro(3);
    Gryo_init();
-   int cnt = 0;
-   // while(1) {
-   //    motor(180);
-   // }
+   // int cnt = 0;
    // for(int i = 0; i < 4; i++) {
    //    for(int j = 0; j < 2; j++) {
    //       thresholds[i][j] = EEPROM.read(cnt) * 5;
@@ -954,7 +1078,7 @@ void setup() {
    // delay(2000);
    // esc.writeMicroseconds(MIN_SIGNAL);
    // delay(2000);
-   // dribler(1000);
+   // dribler(1600);
 }
 
 int status = 0;
@@ -962,7 +1086,7 @@ bool isPushed = false;
 
 void loop() {
    while(digitalRead(MOTOR_SWITCH)) {
-      followBall3();
+      followBall2();
       if(!digitalRead(MOTOR_SWITCH)) {
          // motorStop();
          // dribler(1000); // モーター止まらん ドリブラー止まる
@@ -970,6 +1094,7 @@ void loop() {
          // motorStop();
          // dribler(0); //　モーター止まる ドリブラーバグる
          motorStop();
+         delay(10);
          // dribler(0);
          break;
       }
