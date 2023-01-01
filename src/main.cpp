@@ -1,3 +1,4 @@
+// ライブラリの読み込み
 #include "Arduino.h"
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -7,64 +8,72 @@
 #include <EEPROM.h>
 #include <Servo.h>
 
+// ドリブラーの制御周波数など
 #define MAX_SIGNAL 1600
 #define MIN_SIGNAL 1000
 #define ESC_PIN 13
 
-#define MOTOR_SWITCH 32
-
+// ドリブラー用の変数・コンストラクタ
 int volume = 0;
 char message[50];
-
 Servo esc;
 
-#define LeftPin 33
-#define RightPin 27 
- 
+// ディスプレイ関連の定義
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
-
 #define SIZE_OF_ARRAY(array) (sizeof(array) / sizeof(array[0]))
- 
 #define OLED_RESET 4
 #define SCREEN_ADDRESS 0x3C
-
 #define w display.width()
 #define h display.height()
-// いれかえた！！！！！！！！
+
+// ボタンのピン関連
+#define MOTOR_SWITCH 32
+#define LeftPin 33
+#define RightPin 27
 #define LeftPush isPush(31)
 #define CenterPush isPush(25)
 #define OnOffPush isPush(30)
 #define RightPush isPush(27)
 #define AnyPush (LeftPush || CenterPush || OnOffPush || RightPush)
 
+
+// ラインセンサーの真偽
 #define isOnFront (isOnLine(1,0) || isOnLine(1,1)) // 前 (中,外)
 #define isOnRight (isOnLine(0,0) || isOnLine(0,1)) // 右 (外,中)
 #define isOnBack (isOnLine(2,0) || isOnLine(2,1)) // 後 (外,中)
 #define isOnLeft (isOnLine(3,0) || isOnLine(3,1)) // 左 (外,中)
 
+// 外側のラインセンサが反応してるか
 #define isOutFront isOnLine(1,1)
 #define isOutRight isOnLine(0,0)
 #define isOutBack isOnLine(2,0)
 #define isOutLeft isOnLine(3,0)
 
+// 内側のラインセンサが反応してるか
 #define isInFront isOnLine(1,0)
 #define isInRight isOnLine(0,1)
 #define isInBack isOnLine(2,1)
 #define isInLeft isOnLine(3,1)
 
+// いずれかの外側のラインセンサが反応しているか
 #define isOnOut (isOnLine(1,1) || isOnLine(0,0) || isOnLine(2,0) || isOnLine(3,0))
+// いずれかの内側の...
 #define isOnIn (isOnLine(1,0) || isOnLine(0,1) || isOnLine(2,1) || isOnLine(3,1))
 
+// ラインセンサがどれか1つでも反応しているか
 #define isOnAny (isOnOut || isOnIn)
 
+// モータードライバの定義
 CytronMD motor1(PWM_DIR, 5, 4);
 CytronMD motor2(PWM_DIR, 3, 2);
 CytronMD motor3(PWM_DIR, 9, 8);
 CytronMD motor4(PWM_DIR, 12, 6);
 
+// ディスプレイの初期化
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
+// ジャイロ関連
 MPU6050 mpu;
 static uint8_t mpuIntStatus;
 static bool dmpReady = false;
@@ -77,19 +86,22 @@ VectorFloat gravity;
 float ypr[3];
 int Gyro_X, Gyro_Y, Gyro_Z, Accel_Z;
 
+// ロボットのスピード 0~255まで
 int speed = 200;
-bool isFirstSetSpeed = true;
 
+// その他 グローバル変数
+bool isFirstSetSpeed = true;
 int ave_motor_power[4][10] = {0};
 int ave_mpPlus = 0;
-
 int prevIR, dirPlus, cnt;
 int dirIR = 0;
 
+// ドリブラーを回す関数
 void dribler(int pulse) {
    esc.writeMicroseconds(pulse);
 }
 
+// IRセンサと通信して値を取得
 int getVah(int f) {
    byte val = 0;
    Wire.beginTransmission(0x0E);
@@ -103,6 +115,7 @@ int getVah(int f) {
    return (int)val;
 }
 
+// カメラと通信する
 int getCam() {
    byte re = 0;
    if (Serial7.available()) {
@@ -117,11 +130,13 @@ int getCam() {
    return (int)re;
 }
 
+// 文字列の中心x座標を返す(ディスプレイ用)
 int getDx(String txt) {
    int char_len = txt.length();
    return (display.width() / 2) - ((char_len / 2) * 11);
 }
 
+// ボールの距離or角度を返す
 int IRval(int i) {
    int a = getVah(0x04);
    int b = getVah(0x05);
@@ -147,6 +162,7 @@ int IRval(int i) {
    }
 }
 
+// IRセンサの精度向上らしい
 int getdirIR() {
    dirIR = IRval(1);
    if (abs(prevIR - dirIR) > 30) {
@@ -166,6 +182,7 @@ int getdirIR() {
    return dirIR;
 }
 
+// ジャイロセンサの値を返す
 int GyroGet(void) {
    mpuIntStatus = false;
    mpuIntStatus = mpu.getIntStatus();
@@ -195,6 +212,7 @@ int GyroGet(void) {
    return Gyro;
 }
 
+// ジャイロセンサの初期化
 void Gryo_init() {
    mpu.initialize();
    if (mpu.testConnection() != true) {
@@ -213,6 +231,7 @@ void Gryo_init() {
    packetSize = mpu.dmpGetFIFOPacketSize();
 }
 
+// ジャイロセンサの個体差調整
 void selectGyro(int number) {
    switch (number) {
       case 0:
@@ -237,6 +256,7 @@ void selectGyro(int number) {
    }
 }
 
+// num番のボタンが押されたかの真偽
 bool isPush(int num) {
    if (digitalRead(num)) {
       while (digitalRead(num)) {
@@ -251,12 +271,14 @@ bool isPush(int num) {
    }
 }
 
+// ディスプレイの初期化
 void display_init() {
    if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
       Serial.println(F("SSD1306 allocation failed"));
    }
 }
 
+// ディスプレイ用 車検時のキックデモ
 void printKick() {
    String txt = "Kick Test";
    int char_len = txt.length();
@@ -269,6 +291,7 @@ void printKick() {
    display.display();
 }
 
+// ディスプレイ用 ボールの角度表示
 void printIR() {
    int cx = w / 4, cy = h / 2, r = 18;
    float deg = IRval(1), Rad;
@@ -290,10 +313,12 @@ void printIR() {
    display.display();
 }
 
+// ラインセンサーのピン
 int analogPins[4][2] = {
    {0, 1}, {2, 3}, {6, 7}, {8, 9}
 };
 
+// ラインセンサーの閾値
 int thresholds[4][2] = {
    {800, 800},
    {800, 800},
@@ -301,9 +326,11 @@ int thresholds[4][2] = {
    {800, 800}
 };
 
+// ラインセンサの時期位置自動調整用の一時的な変数
 int LineMin[4][2] = {1023};
 int LineMax[4][2] = {0};
 
+// ラインセンサの時期位置自動調整
 void LineThUpdate() {
    String txt = "Update";
    display.clearDisplay();
@@ -353,14 +380,17 @@ void LineThUpdate() {
    }
 }
 
+// ラインセンサーの読み取った値を返す
 int getLine(int i, int j) {
    return analogRead(analogPins[i][j]);
 }
 
+// 白線上かを判定
 bool isOnLine(int i, int j) {
    return (analogRead(analogPins[i][j]) > thresholds[i][j])? true: false;
 }
 
+// ボールをキャッチしているか
 bool isCatch() {
   int th = 50;
   int val = analogRead(A12);
@@ -372,6 +402,7 @@ bool isCatch() {
   }
 }
 
+// ディスプレイ用 ラインセンサーの表示
 void printLine() {
    int cx = w/4, cy = h/2;
    display.clearDisplay();
@@ -410,12 +441,13 @@ void printLine() {
    display.display();
 }
 
+// ディスプレイ用のグローバル変数
 int speed_status = 0;
 bool speed_isPushed = false;
-
 String speed_mode[] = {"0", "10", "50", "100", "150", "170", "200", "220", "250"};
 int speed_mode_len = SIZE_OF_ARRAY(speed_mode);
 
+// ディスプレイ用 スピードを変える
 void changeSpeed() {
    if (LeftPush) {
       speed_isPushed = true;
@@ -449,6 +481,7 @@ void changeSpeed() {
    }
 }
 
+// ディスプレイ用 ジャイロの値を表示
 void printIMU() {
    int cx = w / 4, cy = h / 2, r = 21;
    float deg = GyroGet(), Rad;
@@ -469,6 +502,7 @@ void printIMU() {
    display.display();
 }
 
+// ディスプレイ用 ジャイロの0度のリセット
 void RST_Gy() {
    String txt = "RST Gyro";
    int char_len = txt.length();
@@ -494,6 +528,7 @@ void RST_Gy() {
    }
 }
 
+// モーター停止
 void motorStop() {
    motor1.setSpeed(0);
    motor2.setSpeed(0);
@@ -501,6 +536,7 @@ void motorStop() {
    motor4.setSpeed(0);
 }
 
+// ロボットが正面を向いていなければ前を向く
 void turnFront() {
    int diff = 45;
    int S = 50;
@@ -538,6 +574,7 @@ void turnFront() {
    }
 } 
 
+// モーターを0~360度、任意の方へ動かす 平均値化アリ 通常移動用
 void motor(int angle) {
    double motor_power[4];
    double max_power;
@@ -579,48 +616,7 @@ void motor(int angle) {
    motor4.setSpeed(motor_power[3] + addP);
 }
 
-void DribleMotor(int angle) {
-   double motor_power[4];
-   double max_power;
-   motor_power[0] = cos((45 - angle) / 180.0 * PI);
-   motor_power[1] = cos((135 - angle) / 180.0 * PI);
-   motor_power[2] = cos((-45 - angle) / 180.0 * PI);
-   motor_power[3] = cos((-135 - angle) / 180.0 * PI);
-   for (int i = 0; i < 4; i++) {
-      if (abs(motor_power[i]) > max_power) {
-         max_power = abs(motor_power[i]);
-      }
-   }
-   for (int i = 0; i < 4; i++) {
-      motor_power[i] = speed * motor_power[i] / max_power;
-      for (int j = 9; j > 0; j--) {
-         ave_motor_power[i][j] = ave_motor_power[i][j - 1];
-      }
-      ave_motor_power[i][0] = motor_power[i];
-      ave_mpPlus = 0;
-      for (int k = 0; k < 10; k++) {
-         ave_mpPlus = ave_mpPlus + ave_motor_power[i][k];
-      }
-      motor_power[i] = ave_mpPlus / 10;
-   }
-   int gy = GyroGet();
-   int addP = 0;
-   if(gy > 45 && gy < 315) {
-      turnFront();
-   }
-   if(gy > 5 && gy < 180) {
-      addP = 0;
-   }
-   else if (gy >= 180 && gy < 355) {
-      addP = -50;
-   }
-
-   motor1.setSpeed(-motor_power[1] + addP);
-   motor2.setSpeed(motor_power[0] + addP);
-   motor3.setSpeed(motor_power[2] + addP);
-   motor4.setSpeed(motor_power[3] + addP);
-}
-
+// ラインセンサーを踏んだ時用のモーター制御 平均値化なし
 void lightMotor(int angle) {
    double motor_power[4];
    double max_power;
@@ -654,6 +650,7 @@ void lightMotor(int angle) {
    motor4.setSpeed(motor_power[3] + addP);
 }
 
+// キッカー
 void kick() {
    digitalWrite(10, HIGH);
    delay(100);
@@ -661,6 +658,7 @@ void kick() {
    delay(100);
 }
 
+// ラインセンサの値をメモリに保存
 void writeEEPROM() {
   int cnt = 0;
   for(int i = 0; i < 4; i++) {
@@ -674,6 +672,7 @@ void writeEEPROM() {
   Serial.println("");
 }
 
+// ボールを追う関数 今は使ってない
 void followBall2() {
 
   int IR = getdirIR();
@@ -735,25 +734,8 @@ void followBall2() {
       }
    }
    else {
-      //ボール追いかけ
       IR = getdirIR();
- //     dirIR = IRval(1);
 
-      // if (abs(prevIR - dirIR) > 110) {
-      //    cnt++;
-      //    if (cnt == 5) {
-      //       cnt = 0;
-      //       prevIR = dirIR;
-      //    }
-      //    else {
-      //       dirIR = prevIR;
-      //    }
-      // }
-      // else {
-      //    cnt = 0;
-      //    prevIR = dirIR;
-      // }
-      // Serial.println(IRval(1));
       if (IR <= 35) {
          dirPlus = IR ;
       }
@@ -764,8 +746,6 @@ void followBall2() {
          dirPlus = 50;
       }
       dirPlus = dirPlus *3/4;
-
-      
 
       if (getVah(0x05) <= 60 && getVah(0x07) <= 15) {
          motor(IR);
@@ -809,166 +789,31 @@ void followBall2() {
          }
       }
    }
-
-// //    while(isCatch() && (IR == 0 || IR == 5 || IR == 355)) {
-// //       dribler(2);
-// //       // lightMotor(0);
-// //       motor(0);
-// //    // if(isOnFront) {
-// //    //    lightMotor(180);
-// //    //    delay(dltime);
-// //    //    int time = millis(); 
-// //    //    while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
-// //    //       motorStop();
-// //    //       IR = getdirIR(); 
-// //    //       if(IR >= 90 && IR <= 270) {
-// //    //          break;
-// //    //       } 
-// //    //    }
-// //    // }
-// //   }
-
-// //  if(isOnFront) {
-// //     lightMotor(180);
-// //     delay(dltime);
-// //     int time = millis(); 
-// //     while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
-// //        motorStop();
-// //        IR = getdirIR(); 
-// //        if(IR >= 90 && IR <= 270) {
-// //           break;
-// //        } 
-// //     }
-// //  }
-
-// //  if(isOnRight) {
-// //     lightMotor(270);
-// //     delay(dltime);
-// //     int time = millis(); 
-// //     while(((millis() - time) < 3000) && (IR <= 180 && IR >= 0)) {
-// //        motorStop();
-// //        IR = getdirIR(); 
-// //        if(IR >= 180) {
-// //           break;
-// //        } 
-// //     }
-// //  }
-
-// //  if(isOnBack) {
-// //     lightMotor(0);
-// //     delay(dltime);
-// //     int time = millis(); 
-// //     while(((millis() - time) < 3000) && (IR <= 270 && IR >= 90)) {
-// //        motorStop();
-// //        IR = getdirIR(); 
-// //        if(IR >= 270 || IR <= 90) {
-// //           break;
-// //        } 
-// //     }
-// //  }
-
-// //  if(isOnLeft) {
-// //     lightMotor(90);
-// //     delay(dltime);
-// //     int time = millis(); 
-// //     while(((millis() - time) < 3000) && (IR >= 180)) {
-// //        motorStop();
-// //        IR = getdirIR(); 
-// //        if(IR >= 0 && IR <= 180) {
-// //           break;
-// //        } 
-// //     }
-// //  }
-
-//    dribler(1);
-
-//    IR = getdirIR();
-//    dirIR = IRval(1);
-
-//    if (abs(prevIR - dirIR) > 110) {
-//       cnt++;
-//       if (cnt == 5) {
-//          cnt = 0;
-//          prevIR = dirIR;
-//       }
-//       else {
-//          dirIR = prevIR;
-//       }
-//    }
-//    else {
-//       cnt = 0;
-//       prevIR = dirIR;
-//    }
-//    if (dirIR <= 35) {
-//       dirPlus = dirIR ;
-//    }
-//    else if (dirIR >= 325) {
-//       dirPlus = (360 - dirIR);
-//    } 
-//    else {
-//       dirPlus = 50;
-//    }
-
-//    dirPlus = dirPlus + 10;
-
-//    if (getVah(0x05) <= 50 && getVah(0x07) <= 10) {
-//       motor(dirIR);
-//    }
-//    else if (getVah(0x05) >= 75 && getVah(0x07) >= 15) {
-//       if (dirIR <= 5 || dirIR >= 355) {
-//          motor(0);
-//       }
-//       else {
-//          if (dirIR <= 180) {
-//             motor(dirIR + dirPlus * 2);
-//          }
-//          else {
-//             motor(dirIR - dirPlus * 2);
-//          }
-//       }
-//    } 
-//    else {
-//       if (dirIR <= 180) {
-//          motor(dirIR + dirPlus);
-//       } 
-//       else {
-//          motor(dirIR - dirPlus);
-//       }
-//    }
-// }
-
-   // if(IR == 0 || IR == 5 || IR == 355) {
-   //    motor(0);
-   // }
-   // else if (IR <= 30 || IR >= 330){
-   //    motor(IR);
-   // }
-   // else {
-   //    if (IR <= 180){
-   //       motor(IR + 60);
-   //    }
-   //    else {
-   //       motor(IR - 60);
-   //    }
-   // } 
-// }
 }
 
+// ボール追う関数 今はこっち使ってる
 void followBall3() {
+   // ball、IRにボールの角度を代入
    int ball = IRval(1);
    int IR = ball;
 
+   // ラインセンサを踏んだ時に戻る時間
    int dltime = 200;
 
    if(isOnAny) {
-      if(isOnFront) {
-         lightMotor(180);
-         delay(dltime*2);
-         int time = millis(); 
-         while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) {
+      // いずれかの白線上なら
+
+      if(isOnFront) { 
+         // 前の白線を踏んだら
+         lightMotor(180); // 180後ろへ行く
+         delay(dltime*2); // dltime*2続ける
+         int time = millis(); // 時間計測
+         while(((millis() - time) < 3000) && (IR <= 90 || IR >= 270)) { 
+            // 3秒以内かつ ボールが前 なら 待機
             motorStop();
             IR = getdirIR(); 
             if((IR >= 90 && IR <= 270) || digitalRead(MOTOR_SWITCH)) {
+               // ボールが後ろに行ったら走り出す
                break;
             } 
          }
@@ -1011,8 +856,9 @@ void followBall3() {
       }
    }
    else {
+      // 白線上でない時
       if(ball <= 5 || ball >= 350) {
-         // dribler(1300);
+         // ボールが前にある
          motor(ball);
          while(isCatch()) {
             // 課題：右に行く
@@ -1038,6 +884,7 @@ void followBall3() {
 
 }
 
+// ディスプレイ関係の変数
 String mode[] = {"Main", "Ball", "Gyro", "Kick", "Speed", "RST Gyro","LineCheck","LineThUp","EEPROM"};
 int mode_len = SIZE_OF_ARRAY(mode);
 
